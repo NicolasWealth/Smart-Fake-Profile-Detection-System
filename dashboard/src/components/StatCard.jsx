@@ -7,21 +7,11 @@ function formatValue(value, decimals, suffix) {
   return `${Number(value).toFixed(decimals)}${suffix}`
 }
 
-function AnimatedValue({ value, decimals = 0, suffix = "" }) {
-  const numericValue = Number(value)
+function NumericAnimatedValue({ numericValue, decimals, suffix }) {
   const motionValue = useMotionValue(0)
-  const [displayValue, setDisplayValue] = useState(
-    Number.isFinite(numericValue)
-      ? formatValue(0, decimals, suffix)
-      : value
-  )
+  const [displayValue, setDisplayValue] = useState(formatValue(0, decimals, suffix))
 
   useEffect(() => {
-    if (!Number.isFinite(numericValue)) {
-      setDisplayValue(value)
-      return undefined
-    }
-
     const unsubscribe = motionValue.on("change", (latest) => {
       setDisplayValue(formatValue(latest, decimals, suffix))
     })
@@ -34,9 +24,19 @@ function AnimatedValue({ value, decimals = 0, suffix = "" }) {
       unsubscribe()
       controls.stop()
     }
-  }, [decimals, motionValue, numericValue, suffix, value])
+  }, [decimals, motionValue, numericValue, suffix])
 
   return <span>{displayValue}</span>
+}
+
+function AnimatedValue({ value, decimals = 0, suffix = "" }) {
+  const numericValue = Number(value)
+
+  if (!Number.isFinite(numericValue)) {
+    return <span>{value}</span>
+  }
+
+  return <NumericAnimatedValue numericValue={numericValue} decimals={decimals} suffix={suffix} />
 }
 
 export default function StatCard({

@@ -21,3 +21,7 @@ export function fetchModelMetrics() {
 export function fetchFeatureImportance() {
   return fetchJson("/feature-importance")
 }
+
+export function fetchModelInfo() {
+  return fetchJson("/model-info")
+}

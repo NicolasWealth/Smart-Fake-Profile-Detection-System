@@ -12,10 +12,21 @@ export const theme = {
   cyan: "#22d3ee",
   blue: "#60a5fa",
   green: "#2dd4bf",
+  yellow: "#facc15",
   amber: "#fbbf24",
   orange: "#fb923c",
   red: "#fb7185",
+  gray: "#94a3b8",
   magenta: "#c084fc"
+}
+
+export const severityColors = {
+  HIGH: theme.red,
+  CRITICAL: theme.red,
+  MEDIUM: theme.orange,
+  LOW: theme.yellow,
+  UNCERTAIN: theme.gray,
+  REAL: theme.green
 }
 
 export const cardStyle = {
@@ -41,24 +52,51 @@ export function getConfidenceValue(scan) {
   return Math.round((probability >= 0.5 ? probability : 1 - probability) * 100)
 }
 
-export function getRiskTone(probability, confidence = probability >= 50 ? probability : 100 - probability) {
-  if (probability >= 85) {
-    return { label: "Critical", color: theme.red }
+export function getSeverityColor(label) {
+  const normalizedLabel = String(label || "").toUpperCase()
+  return severityColors[normalizedLabel] || theme.gray
+}
+
+export function getRiskTone(
+  probability,
+  confidence = probability >= 50 ? probability : 100 - probability,
+  label = ""
+) {
+  const normalizedLabel = String(label || "").toUpperCase()
+
+  if (normalizedLabel === "REAL") {
+    return { label: "REAL", color: severityColors.REAL }
   }
 
-  if (probability >= 70) {
-    return { label: "High", color: theme.orange }
+  if (normalizedLabel === "HIGH" || normalizedLabel === "CRITICAL") {
+    return { label: "HIGH", color: severityColors.HIGH }
   }
 
-  if (probability >= 50) {
-    return { label: "Medium", color: theme.amber }
+  if (normalizedLabel === "MEDIUM") {
+    return { label: "MEDIUM", color: severityColors.MEDIUM }
+  }
+
+  if (normalizedLabel === "LOW") {
+    return { label: "LOW", color: severityColors.LOW }
   }
 
   if (confidence < 60) {
-    return { label: "Uncertain", color: theme.blue }
+    return { label: "UNCERTAIN", color: severityColors.UNCERTAIN }
   }
 
-  return { label: "Low", color: theme.green }
+  if (probability >= 70) {
+    return { label: "HIGH", color: severityColors.HIGH }
+  }
+
+  if (probability >= 50) {
+    return { label: "MEDIUM", color: severityColors.MEDIUM }
+  }
+
+  if (probability >= 30) {
+    return { label: "LOW", color: severityColors.LOW }
+  }
+
+  return { label: "REAL", color: severityColors.REAL }
 }
 
 export function formatTimestamp(value, options = {}) {

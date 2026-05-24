@@ -1,6 +1,7 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts"
 
 import { cardStyle, theme } from "../lib/dashboardTheme.js"
+import EmptyState from "./EmptyState.jsx"
 
 export default function PredictionPie({ scans }) {
   const fakeCount = scans.filter((scan) => scan.label === "fake").length
@@ -17,7 +18,12 @@ export default function PredictionPie({ scans }) {
       }}
     >
       <h2 style={{ marginTop: 0, fontSize: 20, color: theme.text }}>Prediction share</h2>
-      <div style={{ height: 220, marginTop: 12 }}>
+      {scans.length === 0 && (
+        <div style={{ marginTop: 12 }}>
+          <EmptyState title="No scans available" detail="Waiting for telemetry before drawing prediction share." />
+        </div>
+      )}
+      {scans.length > 0 && <div style={{ height: 220, marginTop: 12 }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -42,7 +48,7 @@ export default function PredictionPie({ scans }) {
             />
           </PieChart>
         </ResponsiveContainer>
-      </div>
+      </div>}
       <div style={{ display: "flex", justifyContent: "space-between", gap: 16, color: theme.muted }}>
         <span>Fake: {fakeCount}</span>
         <span>Real: {realCount}</span>

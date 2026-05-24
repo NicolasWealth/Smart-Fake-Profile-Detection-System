@@ -3,6 +3,7 @@ import joblib
 import numpy as np
 import pandas as pd
 
+from datetime import datetime, timezone
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
@@ -22,6 +23,8 @@ from sklearn.preprocessing import StandardScaler
 MODEL_PATH = "data/models/best_model.pkl"
 METRICS_PATH = "ai/model_metrics.json"
 FEATURE_IMPORTANCE_PATH = "ai/feature_importance.json"
+METADATA_PATH = "ai/model_metadata.json"
+MODEL_VERSION = "v2.1.0"
 THRESHOLD_CANDIDATES = np.arange(0.3, 0.7, 0.05)
 
 
@@ -54,6 +57,9 @@ df = pd.read_csv("data/processed/clean_dataset.csv")
 X = df.drop(columns=["label"])
 y = df["label"]
 feature_names = X.columns.tolist()
+dataset_size = int(len(df))
+fake_samples = int((y == 1).sum())
+real_samples = int((y == 0).sum())
 
 # Split
 X_train, X_test, y_train, y_test = train_test_split(
@@ -158,6 +164,7 @@ for name, model in models.items():
             "roc_auc": round(float(roc_auc), 4),
             "threshold": round(float(selected_threshold), 4),
             "model_name": name,
+            "model_version": MODEL_VERSION,
             "roc_curve": [
                 {
                     "fpr": round(float(x), 6),
@@ -174,11 +181,27 @@ joblib.dump(
         "threshold": best_threshold,
         "features": feature_names,
         "model_name": best_name,
+        "model_version": MODEL_VERSION,
         "metrics": best_metrics,
         "feature_importance": best_feature_importance,
     },
     MODEL_PATH
 )
+
+trained_at = datetime.now(timezone.utc).isoformat()
+model_metadata = [
+    {
+        "trained_at": trained_at,
+        "dataset_size": dataset_size,
+        "fake_samples": fake_samples,
+        "real_samples": real_samples,
+        "features": feature_names,
+        "feature_count": len(feature_names),
+        "model_name": best_name,
+        "model_version": MODEL_VERSION,
+        "threshold": round(float(best_threshold), 4)
+    }
+]
 
 with open(METRICS_PATH, "w", encoding="utf-8") as metrics_file:
     json.dump(best_metrics, metrics_file, indent=2)
@@ -186,9 +209,13 @@ with open(METRICS_PATH, "w", encoding="utf-8") as metrics_file:
 with open(FEATURE_IMPORTANCE_PATH, "w", encoding="utf-8") as importance_file:
     json.dump(best_feature_importance, importance_file, indent=2)
 
+with open(METADATA_PATH, "w", encoding="utf-8") as metadata_file:
+    json.dump(model_metadata, metadata_file, indent=2)
+
 print(feature_names)
 print("\n==========================")
 print("Best Model:", best_name)
 print("Best Threshold:", best_threshold)
 print("Best Fake F1:", round(best_score, 4))
 print("Saved to", MODEL_PATH)
+print("Metadata saved to", METADATA_PATH)

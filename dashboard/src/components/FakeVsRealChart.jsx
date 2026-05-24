@@ -1,6 +1,7 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 
 import { cardStyle, theme } from "../lib/dashboardTheme.js"
+import EmptyState from "./EmptyState.jsx"
 
 function getCount(scans, label) {
   return scans.filter((scan) => scan.label === label).length
@@ -33,7 +34,12 @@ export default function FakeVsRealChart({ scans }) {
       }}
     >
       <h2 style={{ marginTop: 0, fontSize: 20, color: theme.text }}>Label split</h2>
-      <div style={{ height: 180, marginTop: 12 }}>
+      {scans.length === 0 && (
+        <div style={{ marginTop: 12 }}>
+          <EmptyState title="No scans available" detail="Waiting for labeled scan telemetry." />
+        </div>
+      )}
+      {scans.length > 0 && <div style={{ height: 180, marginTop: 12 }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} barGap={18}>
             <CartesianGrid stroke={theme.grid} vertical={false} />
@@ -61,7 +67,7 @@ export default function FakeVsRealChart({ scans }) {
             <Bar dataKey="real" fill={theme.green} radius={[8, 8, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
-      </div>
+      </div>}
       <div
         style={{
           marginTop: 16,

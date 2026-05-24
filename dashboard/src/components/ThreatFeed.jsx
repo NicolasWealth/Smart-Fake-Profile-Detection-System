@@ -142,7 +142,7 @@ export default function ThreatFeed({ scans, selectedScanKey, onSelect }) {
               const rowKey = getRowKey(scan)
               const probability = getProbabilityValue(scan)
               const confidence = getConfidenceValue(scan)
-              const tone = getRiskTone(probability, confidence)
+              const tone = getRiskTone(probability, confidence, scan.risk_level || scan.label)
               const isSelected = rowKey === selectedScanKey
 
               return (
@@ -177,7 +177,7 @@ export default function ThreatFeed({ scans, selectedScanKey, onSelect }) {
               )
             })}
             {latestScans.length === 0 && (
-              <div style={{ color: theme.muted }}>No scans have been ingested yet.</div>
+              <div style={{ color: theme.muted }}>No scans available. Waiting for telemetry...</div>
             )}
           </div>
         </div>

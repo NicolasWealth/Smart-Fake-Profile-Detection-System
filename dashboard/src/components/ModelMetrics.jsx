@@ -1,16 +1,8 @@
 import { motion } from "framer-motion"
 import { Activity, Crosshair, Radar, ShieldCheck, TrendingUp } from "lucide-react"
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis
-} from "recharts"
 
 import { cardStyle, theme } from "../lib/dashboardTheme.js"
+import EmptyState from "./EmptyState.jsx"
 
 const METRIC_ITEMS = [
   { key: "accuracy", label: "Accuracy", color: theme.cyan, icon: ShieldCheck },
@@ -30,8 +22,6 @@ function formatMetricValue(value) {
 }
 
 export default function ModelMetrics({ metrics, loading, error }) {
-  const rocCurve = Array.isArray(metrics?.roc_curve) ? metrics.roc_curve : []
-
   return (
     <motion.section
       initial={{ opacity: 0, y: 20 }}
@@ -56,8 +46,8 @@ export default function ModelMetrics({ metrics, loading, error }) {
         </div>
       </div>
 
-      {loading && <p style={{ color: theme.muted }}>Loading model metrics...</p>}
-      {error && <p style={{ color: theme.red }}>{error}</p>}
+      {loading && <EmptyState title="Waiting for telemetry..." detail="Loading model metrics." />}
+      {error && <EmptyState title="Model metrics unavailable" detail={error} />}
 
       {!loading && !error && (
         <>
@@ -98,59 +88,6 @@ export default function ModelMetrics({ metrics, loading, error }) {
               gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))"
             }}
           >
-            <div
-              style={{
-                borderRadius: 18,
-                border: `1px solid ${theme.border}`,
-                background: "rgba(255,255,255,0.03)",
-                padding: 16,
-                minHeight: 280
-              }}
-            >
-              <div style={{ color: theme.text, fontWeight: 700 }}>ROC curve</div>
-              <div style={{ color: theme.muted, fontSize: 13, marginTop: 6 }}>
-                Exported from the latest training pass when available.
-              </div>
-              {rocCurve.length > 1 ? (
-                <div style={{ height: 220, marginTop: 14 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={rocCurve}>
-                      <CartesianGrid stroke={theme.grid} />
-                      <XAxis
-                        dataKey="fpr"
-                        type="number"
-                        domain={[0, 1]}
-                        tick={{ fill: theme.muted, fontSize: 12 }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <YAxis
-                        dataKey="tpr"
-                        type="number"
-                        domain={[0, 1]}
-                        tick={{ fill: theme.muted, fontSize: 12 }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          background: theme.backgroundAlt,
-                          border: `1px solid ${theme.borderStrong}`,
-                          borderRadius: 12,
-                          color: theme.text
-                        }}
-                      />
-                      <Line type="monotone" dataKey="tpr" stroke={theme.cyan} strokeWidth={3} dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <p style={{ color: theme.muted, marginTop: 24 }}>
-                  Re-run `ml-model/train_v2.py` to publish ROC curve points into `ai/model_metrics.json`.
-                </p>
-              )}
-            </div>
-
             <div
               style={{
                 borderRadius: 18,

@@ -62,12 +62,13 @@ app.add_middleware(
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "..", "data", "models", "best_model.pkl")
 MODEL_METRICS_PATH = os.path.join(BASE_DIR, "model_metrics.json")
+MODEL_METADATA_PATH = os.path.join(BASE_DIR, "model_metadata.json")
 FEATURE_IMPORTANCE_PATH = os.path.join(BASE_DIR, "feature_importance.json")
 bundle = joblib.load(MODEL_PATH)
 model = bundle["model"]
 threshold = float(bundle.get("threshold", 0.5))
 MODEL_FEATURES = bundle.get("features", DEFAULT_MODEL_FEATURES)
-MODEL_VERSION = "v2.1.0"
+MODEL_VERSION = bundle.get("model_version", "v2.1.0")
 MODEL_NAME = bundle.get("model_name", type(model).__name__)
 DEFAULT_MODEL_METRICS = bundle.get("metrics", {})
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
@@ -128,6 +129,19 @@ DEFAULT_FEATURE_IMPORTANCE = (
     bundle.get("feature_importance") or
     extract_feature_importance(model, MODEL_FEATURES)
 )
+DEFAULT_MODEL_METADATA = [
+    {
+        "trained_at": None,
+        "dataset_size": None,
+        "fake_samples": None,
+        "real_samples": None,
+        "features": MODEL_FEATURES,
+        "feature_count": len(MODEL_FEATURES),
+        "model_name": MODEL_NAME,
+        "model_version": MODEL_VERSION,
+        "threshold": threshold
+    }
+]
 
 
 def load_json_file(path, fallback):
@@ -217,16 +231,16 @@ def build_feature_frame(data):
 def build_risk_level(probability):
     score = probability * 100
 
-    if score >= 85:
-        return "Critical"
-
     if score >= 70:
-        return "High"
+        return "HIGH"
 
     if score >= 50:
-        return "Medium"
+        return "MEDIUM"
 
-    return "Low"
+    if score >= 30:
+        return "LOW"
+
+    return "REAL"
 
 
 def build_explanation(row, probability):
@@ -383,6 +397,11 @@ def health():
 @app.get("/metrics")
 def metrics():
     return load_json_file(MODEL_METRICS_PATH, DEFAULT_MODEL_METRICS)
+
+
+@app.get("/model-info")
+def model_info():
+    return load_json_file(MODEL_METADATA_PATH, DEFAULT_MODEL_METADATA)
 
 
 @app.get("/feature-importance")

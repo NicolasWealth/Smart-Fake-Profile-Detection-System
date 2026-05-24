@@ -58,7 +58,7 @@ export default function ExplanationPanel({ scan }) {
   const reasons = getReasonList(scan)
   const probability = getProbabilityValue(scan)
   const confidence = getConfidenceValue(scan)
-  const tone = getRiskTone(probability, confidence)
+  const tone = getRiskTone(probability, confidence, scan?.risk_level || scan?.label)
 
   return (
     <section
@@ -67,7 +67,7 @@ export default function ExplanationPanel({ scan }) {
       }}
     >
       <h2 style={{ marginTop: 0, fontSize: 20, color: theme.text }}>Selected scan</h2>
-      {!scan && <p style={{ color: theme.muted, marginBottom: 0 }}>No scan selected.</p>}
+      {!scan && <p style={{ color: theme.muted, marginBottom: 0 }}>No scans available. Waiting for telemetry...</p>}
       {scan && (
         <>
           <div

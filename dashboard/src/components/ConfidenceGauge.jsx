@@ -12,7 +12,7 @@ import {
 export default function ConfidenceGauge({ scan }) {
   const probability = getProbabilityValue(scan)
   const confidence = getConfidenceValue(scan)
-  const tone = getRiskTone(probability, confidence)
+  const tone = getRiskTone(probability, confidence, scan?.risk_level || scan?.label)
   const fill = Math.min(Math.max(probability, 0), 100)
 
   return (

@@ -1,0 +1,33 @@
+[
+  {
+    "trained_at": "2026-05-22T04:43:04Z",
+    "dataset_size": 3000,
+    "fake_samples": 1059,
+    "real_samples": 1941,
+    "features": [
+      "followers_count",
+      "following_count",
+      "follower_following_ratio",
+      "account_age_days",
+      "statuses_count",
+      "posts_per_day",
+      "content_density",
+      "tweets_per_day",
+      "engagement_proxy",
+      "followers_log",
+      "following_log",
+      "ratio_log",
+      "activity_score",
+      "growth_signal",
+      "has_profile_image",
+      "verified",
+      "bio_length",
+      "username_randomness_score",
+      "username_length"
+    ],
+    "feature_count": 19,
+    "model_name": "RandomForest",
+    "model_version": "v2.1.0",
+    "threshold": 0.3
+  }
+]

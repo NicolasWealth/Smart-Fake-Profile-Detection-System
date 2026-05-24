@@ -1,12 +1,13 @@
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 
-import { cardStyle, theme } from "../lib/dashboardTheme.js"
+import { cardStyle, severityColors, theme } from "../lib/dashboardTheme.js"
+import EmptyState from "./EmptyState.jsx"
 
 const BUCKETS = [
-  { label: "Low", min: 0, max: 50, color: theme.green },
-  { label: "Medium", min: 50, max: 70, color: theme.amber },
-  { label: "High", min: 70, max: 85, color: theme.orange },
-  { label: "Critical", min: 85, max: 101, color: theme.red }
+  { label: "REAL", min: 0, max: 30, color: severityColors.REAL },
+  { label: "LOW", min: 30, max: 50, color: severityColors.LOW },
+  { label: "MEDIUM", min: 50, max: 70, color: severityColors.MEDIUM },
+  { label: "HIGH", min: 70, max: 101, color: severityColors.HIGH }
 ]
 
 export default function RiskBarChart({ scans }) {
@@ -34,7 +35,12 @@ export default function RiskBarChart({ scans }) {
         <h2 style={{ margin: 0, fontSize: 20, color: theme.text }}>Risk buckets</h2>
         <span style={{ color: theme.muted, fontSize: 12 }}>Peak bucket: {peak}</span>
       </div>
-      <div style={{ height: 220, marginTop: 18 }}>
+      {scans.length === 0 && (
+        <div style={{ marginTop: 18 }}>
+          <EmptyState title="No scans available" detail="Waiting for telemetry to build risk buckets." />
+        </div>
+      )}
+      {scans.length > 0 && <div style={{ height: 220, marginTop: 18 }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={counts}>
             <XAxis
@@ -64,7 +70,7 @@ export default function RiskBarChart({ scans }) {
             </Bar>
           </BarChart>
         </ResponsiveContainer>
-      </div>
+      </div>}
     </section>
   )
 }

@@ -3,20 +3,26 @@ import { Activity, AlertTriangle, Shield, Waypoints } from "lucide-react"
 import { motion } from "framer-motion"
 
 import ConfidenceGauge from "../components/ConfidenceGauge.jsx"
+import DatasetOverview from "../components/DatasetOverview.jsx"
 import ExplanationPanel from "../components/ExplanationPanel.jsx"
 import FakeVsRealChart from "../components/FakeVsRealChart.jsx"
 import FeatureImportanceChart from "../components/FeatureImportanceChart.jsx"
 import ModelMetrics from "../components/ModelMetrics.jsx"
+import PlatformDistribution from "../components/PlatformDistribution.jsx"
 import PredictionPie from "../components/PredictionPie.jsx"
 import RecentScansTable from "../components/RecentScansTable.jsx"
 import RiskBarChart from "../components/RiskBarChart.jsx"
+import RocCurveChart from "../components/RocCurveChart.jsx"
+import ScanTimelineChart from "../components/ScanTimelineChart.jsx"
 import StatCard from "../components/StatCard.jsx"
 import ThreatFeed from "../components/ThreatFeed.jsx"
-import { fetchFeatureImportance, fetchModelMetrics } from "../lib/api.js"
-import { createBadgeStyle, getConfidenceValue, getProbabilityValue, theme } from "../lib/dashboardTheme.js"
+import { fetchFeatureImportance, fetchModelInfo, fetchModelMetrics } from "../lib/api.js"
+import { createBadgeStyle, getConfidenceValue, getProbabilityValue, getRiskTone, theme } from "../lib/dashboardTheme.js"
 import { supabase } from "../lib/supabase"
 
 const MAX_SCANS = 100
+const SUPABASE_UNAVAILABLE_MESSAGE =
+  "Supabase feed unavailable. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to stream live scans."
 
 function getScanKey(scan) {
   if (!scan) {
@@ -47,20 +53,18 @@ function mergeScans(current, incoming) {
 export default function Dashboard() {
   const [scans, setScans] = useState([])
   const [selectedScanKey, setSelectedScanKey] = useState(null)
-  const [scanError, setScanError] = useState("")
-  const [loadingScans, setLoadingScans] = useState(true)
+  const [scanError, setScanError] = useState(supabase ? "" : SUPABASE_UNAVAILABLE_MESSAGE)
+  const [loadingScans, setLoadingScans] = useState(Boolean(supabase))
   const [metrics, setMetrics] = useState(null)
   const [metricsError, setMetricsError] = useState("")
   const [importance, setImportance] = useState(null)
   const [importanceError, setImportanceError] = useState("")
+  const [modelInfo, setModelInfo] = useState(null)
+  const [modelInfoError, setModelInfoError] = useState("")
   const [loadingTelemetry, setLoadingTelemetry] = useState(true)
 
   useEffect(() => {
     if (!supabase) {
-      setScanError(
-        "Supabase feed unavailable. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to stream live scans."
-      )
-      setLoadingScans(false)
       return undefined
     }
 
@@ -122,9 +126,10 @@ export default function Dashboard() {
 
     async function loadTelemetry() {
       try {
-        const [metricsPayload, importancePayload] = await Promise.all([
+        const [metricsPayload, importancePayload, modelInfoPayload] = await Promise.all([
           fetchModelMetrics(),
-          fetchFeatureImportance()
+          fetchFeatureImportance(),
+          fetchModelInfo()
         ])
 
         if (cancelled) {
@@ -135,6 +140,8 @@ export default function Dashboard() {
         setMetricsError("")
         setImportance(importancePayload)
         setImportanceError("")
+        setModelInfo(modelInfoPayload)
+        setModelInfoError("")
       } catch (error) {
         if (cancelled) {
           return
@@ -143,6 +150,7 @@ export default function Dashboard() {
         const message = error instanceof Error ? error.message : String(error)
         setMetricsError(message)
         setImportanceError(message)
+        setModelInfoError(message)
       } finally {
         if (!cancelled) {
           setLoadingTelemetry(false)
@@ -181,6 +189,7 @@ export default function Dashboard() {
           ) / scans.length
         )
   const highSeverityCount = scans.filter((scan) => getProbabilityValue(scan) >= 70).length
+  const averageRiskTone = getRiskTone(averageRisk)
 
   return (
     <div
@@ -277,7 +286,7 @@ export default function Dashboard() {
           label="Average risk"
           value={averageRisk}
           suffix="%"
-          accent={theme.amber}
+          accent={averageRiskTone.color}
           subtext="Mean fake probability"
           icon={Waypoints}
         />
@@ -304,6 +313,25 @@ export default function Dashboard() {
           loading={loadingTelemetry}
           error={metricsError}
         />
+        <DatasetOverview
+          metadata={modelInfo}
+          loading={loadingTelemetry}
+          error={modelInfoError}
+        />
+      </section>
+
+      <section
+        style={{
+          display: "grid",
+          gap: 16,
+          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))"
+        }}
+      >
+        <RocCurveChart
+          metrics={metrics}
+          loading={loadingTelemetry}
+          error={metricsError}
+        />
         <FeatureImportanceChart
           importance={importance}
           loading={loadingTelemetry}
@@ -323,7 +351,10 @@ export default function Dashboard() {
         <RiskBarChart scans={scans} />
         <FakeVsRealChart scans={scans} />
         <ConfidenceGauge scan={selectedScan} />
+        <PlatformDistribution scans={scans} />
       </section>
+
+      <ScanTimelineChart scans={scans} />
 
       <section
         style={{

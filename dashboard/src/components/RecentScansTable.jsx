@@ -7,6 +7,7 @@ import {
   getRiskTone,
   theme
 } from "../lib/dashboardTheme.js"
+import EmptyState from "./EmptyState.jsx"
 
 function getRowKey(scan) {
   return scan?.id ?? `${scan?.username ?? "unknown"}-${scan?.created_at ?? "pending"}`
@@ -20,8 +21,11 @@ export default function RecentScansTable({ scans, selectedScanKey, onSelect }) {
       }}
     >
       <h2 style={{ marginTop: 0, fontSize: 20, color: theme.text }}>Recent scans</h2>
+      {scans.length === 0 && (
+        <EmptyState title="No scans available" detail="Waiting for telemetry from the live scan feed." />
+      )}
       <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        {scans.length > 0 && <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ textAlign: "left", color: theme.muted }}>
               <th style={{ paddingBottom: 12 }}>User</th>
@@ -37,7 +41,7 @@ export default function RecentScansTable({ scans, selectedScanKey, onSelect }) {
               const isSelected = rowKey === selectedScanKey
               const probability = getProbabilityValue(scan)
               const confidence = getConfidenceValue(scan)
-              const tone = getRiskTone(probability, confidence)
+              const tone = getRiskTone(probability, confidence, scan.risk_level || scan.label)
 
               return (
                 <tr
@@ -64,7 +68,7 @@ export default function RecentScansTable({ scans, selectedScanKey, onSelect }) {
               )
             })}
           </tbody>
-        </table>
+        </table>}
       </div>
     </section>
   )
