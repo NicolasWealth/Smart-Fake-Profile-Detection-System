@@ -9,36 +9,36 @@ function getRiskLevel(probability, confidence) {
                 ? probability
                 : 1 - probability
 
-    if (score >= 85) {
+    if (resolvedConfidence < 0.60) {
         return {
-            level: "Critical",
-            color: "#8B0000"
+            level: "Insufficient Evidence",
+            color: "#64748b"
         }
     }
 
     if (score >= 70) {
         return {
-            level: "High",
+            level: "Automated Threat",
             color: "#d93025"
         }
     }
 
     if (score >= 50) {
         return {
-            level: "Medium",
+            level: "Suspicious Behavior",
             color: "#f9ab00"
         }
     }
 
-    if (resolvedConfidence < 0.60) {
+    if (score >= 30) {
         return {
-            level: "Uncertain",
-            color: "#2563eb"
+            level: "Low Risk",
+            color: "#f9ab00"
         }
     }
 
     return {
-        level: "Low",
+        level: "Authentic Profile",
         color: "#188038"
     }
 }

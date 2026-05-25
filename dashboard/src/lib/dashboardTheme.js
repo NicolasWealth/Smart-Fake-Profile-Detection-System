@@ -22,11 +22,24 @@ export const theme = {
 
 export const severityColors = {
   HIGH: theme.red,
+  "AUTOMATED THREAT": theme.red,
   CRITICAL: theme.red,
   MEDIUM: theme.orange,
+  "SUSPICIOUS BEHAVIOR": theme.orange,
   LOW: theme.yellow,
+  "LOW RISK": theme.yellow,
   UNCERTAIN: theme.gray,
-  REAL: theme.green
+  "INSUFFICIENT EVIDENCE": theme.gray,
+  REAL: theme.green,
+  "AUTHENTIC PROFILE": theme.green
+}
+
+export const threatLabels = {
+  HIGH: "Automated Threat",
+  MEDIUM: "Suspicious Behavior",
+  LOW: "Low Risk",
+  UNCERTAIN: "Insufficient Evidence",
+  REAL: "Authentic Profile"
 }
 
 export const cardStyle = {
@@ -52,6 +65,22 @@ export function getConfidenceValue(scan) {
   return Math.round((probability >= 0.5 ? probability : 1 - probability) * 100)
 }
 
+export function getConfidenceBand(confidence) {
+  if (confidence >= 95) {
+    return "Critical Confidence"
+  }
+
+  if (confidence >= 80) {
+    return "Strong Confidence"
+  }
+
+  if (confidence >= 60) {
+    return "Moderate Confidence"
+  }
+
+  return "Low Confidence"
+}
+
 export function getSeverityColor(label) {
   const normalizedLabel = String(label || "").toUpperCase()
   return severityColors[normalizedLabel] || theme.gray
@@ -63,40 +92,53 @@ export function getRiskTone(
   label = ""
 ) {
   const normalizedLabel = String(label || "").toUpperCase()
+  const directColor = severityColors[normalizedLabel]
 
-  if (normalizedLabel === "REAL") {
-    return { label: "REAL", color: severityColors.REAL }
+  if (directColor && threatLabels[normalizedLabel]) {
+    return { label: threatLabels[normalizedLabel], code: normalizedLabel, color: directColor }
   }
 
-  if (normalizedLabel === "HIGH" || normalizedLabel === "CRITICAL") {
-    return { label: "HIGH", color: severityColors.HIGH }
-  }
-
-  if (normalizedLabel === "MEDIUM") {
-    return { label: "MEDIUM", color: severityColors.MEDIUM }
-  }
-
-  if (normalizedLabel === "LOW") {
-    return { label: "LOW", color: severityColors.LOW }
+  if (directColor) {
+    return { label: label, code: normalizedLabel, color: directColor }
   }
 
   if (confidence < 60) {
-    return { label: "UNCERTAIN", color: severityColors.UNCERTAIN }
+    return {
+      label: threatLabels.UNCERTAIN,
+      code: "UNCERTAIN",
+      color: severityColors.UNCERTAIN
+    }
   }
 
   if (probability >= 70) {
-    return { label: "HIGH", color: severityColors.HIGH }
+    return {
+      label: threatLabels.HIGH,
+      code: "HIGH",
+      color: severityColors.HIGH
+    }
   }
 
   if (probability >= 50) {
-    return { label: "MEDIUM", color: severityColors.MEDIUM }
+    return {
+      label: threatLabels.MEDIUM,
+      code: "MEDIUM",
+      color: severityColors.MEDIUM
+    }
   }
 
   if (probability >= 30) {
-    return { label: "LOW", color: severityColors.LOW }
+    return {
+      label: threatLabels.LOW,
+      code: "LOW",
+      color: severityColors.LOW
+    }
   }
 
-  return { label: "REAL", color: severityColors.REAL }
+  return {
+    label: threatLabels.REAL,
+    code: "REAL",
+    color: severityColors.REAL
+  }
 }
 
 export function formatTimestamp(value, options = {}) {

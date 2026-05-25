@@ -4,73 +4,73 @@ function generateExplanation(payload, result) {
 
     if (payload.follower_following_ratio >= 1000) {
         reasons.push(
-            "Extremely high follower ratio"
+            "Follower-to-following ratio is extreme enough to indicate non-organic audience acquisition patterns"
         )
     }
 
     if (payload.username_randomness_score > 0.4) {
         reasons.push(
-            "Username randomness detected"
+            "Username structure contains randomness signals commonly seen in automated or disposable accounts"
         )
     }
 
     if (payload.has_profile_image === 0) {
         reasons.push(
-            "Missing profile image"
+            "Profile metadata lacks normal authenticity indicators, including a recognizable profile image"
         )
     }
 
     if (payload.bio_length < 10) {
         reasons.push(
-            "Very short biography"
+            "Profile biography is too sparse to provide normal identity or context signals"
         )
     }
 
     if (payload.content_density > 50) {
         reasons.push(
-            "Abnormal posting activity"
+            "Posting density significantly exceeds normal human activity baseline for the account age"
         )
     }
 
     if (payload.tweets_per_day > 50 ||
         payload.activity_score > 50) {
         reasons.push(
-            "Very high daily posting volume"
+            "Daily posting frequency significantly exceeds normal human activity baseline"
         )
     }
 
     if (payload.growth_signal < 0.5 &&
         payload.account_age_days > 180) {
         reasons.push(
-            "Weak follower growth for account age"
+            "Follower growth is unusually weak relative to account age, which reduces account authenticity confidence"
         )
     }
 
     if (payload.engagement_proxy > 1000000 &&
         payload.verified === 0) {
         reasons.push(
-            "Large reach proxy without verification"
+            "Reach proxy is unusually large for an unverified account, creating a credibility mismatch"
         )
     }
 
     if (payload.ratio_log > 2.5 &&
         payload.following_count < 20) {
         reasons.push(
-            "Highly lopsided follower pattern"
+            "Follower graph is highly asymmetric, which can indicate artificial audience shaping"
         )
     }
 
     if (payload.verified === 0 &&
         payload.followers_count > 1000000) {
         reasons.push(
-            "Large audience without verification"
+            "Large audience size without verification increases impersonation and automation risk"
         )
     }
 
     if (reasons.length === 0 &&
         (result.fake_probability || 0) >= 0.5) {
         reasons.push(
-            "Several account signals differ from typical real profiles"
+            "Multiple account signals deviate from the baseline profile of a typical authentic account"
         )
     }
 

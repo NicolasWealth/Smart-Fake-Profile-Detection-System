@@ -4,10 +4,10 @@ import { cardStyle, severityColors, theme } from "../lib/dashboardTheme.js"
 import EmptyState from "./EmptyState.jsx"
 
 const BUCKETS = [
-  { label: "REAL", min: 0, max: 30, color: severityColors.REAL },
-  { label: "LOW", min: 30, max: 50, color: severityColors.LOW },
-  { label: "MEDIUM", min: 50, max: 70, color: severityColors.MEDIUM },
-  { label: "HIGH", min: 70, max: 101, color: severityColors.HIGH }
+  { label: "Authentic Profile", min: 0, max: 30, color: severityColors.REAL },
+  { label: "Low Risk", min: 30, max: 50, color: severityColors.LOW },
+  { label: "Suspicious Behavior", min: 50, max: 70, color: severityColors.MEDIUM },
+  { label: "Automated Threat", min: 70, max: 101, color: severityColors.HIGH }
 ]
 
 export default function RiskBarChart({ scans }) {
@@ -40,20 +40,23 @@ export default function RiskBarChart({ scans }) {
           <EmptyState title="No scans available" detail="Waiting for telemetry to build risk buckets." />
         </div>
       )}
-      {scans.length > 0 && <div style={{ height: 220, marginTop: 18 }}>
+      {scans.length > 0 && <div style={{ height: 250, marginTop: 18 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={counts}>
+          <BarChart data={counts} layout="vertical" margin={{ left: 10, right: 10 }}>
             <XAxis
-              dataKey="label"
-              tick={{ fill: theme.muted, fontSize: 12 }}
-              axisLine={{ stroke: theme.grid }}
-              tickLine={false}
-            />
-            <YAxis
+              type="number"
               tick={{ fill: theme.muted, fontSize: 12 }}
               axisLine={false}
               tickLine={false}
               allowDecimals={false}
+            />
+            <YAxis
+              type="category"
+              dataKey="label"
+              width={140}
+              tick={{ fill: theme.muted, fontSize: 11 }}
+              axisLine={{ stroke: theme.grid }}
+              tickLine={false}
             />
             <Tooltip
               contentStyle={{
@@ -63,7 +66,7 @@ export default function RiskBarChart({ scans }) {
                 color: theme.text
               }}
             />
-            <Bar dataKey="total" radius={[8, 8, 0, 0]}>
+            <Bar dataKey="total" radius={[0, 8, 8, 0]}>
               {counts.map((bucket) => (
                 <Cell key={bucket.label} fill={bucket.color} />
               ))}

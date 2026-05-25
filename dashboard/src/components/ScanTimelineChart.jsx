@@ -52,14 +52,14 @@ function buildTimeline(scans, grouping) {
       riskTotal: 0
     }
     const probability = getProbabilityValue(scan)
-    const tone = getRiskTone(probability, undefined, scan?.label)
+    const tone = getRiskTone(probability, undefined, scan?.risk_level || scan?.risk_code || scan?.label)
 
     current.scans += 1
     current.riskTotal += probability
-    if (tone.label === "HIGH") {
+    if (tone.code === "HIGH") {
       current.highRisk += 1
     }
-    if (tone.label === "MEDIUM") {
+    if (tone.code === "MEDIUM") {
       current.mediumRisk += 1
     }
 

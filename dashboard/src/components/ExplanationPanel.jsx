@@ -1,6 +1,7 @@
 import {
   cardStyle,
   createBadgeStyle,
+  getConfidenceBand,
   getConfidenceValue,
   getProbabilityValue,
   getRiskTone,
@@ -20,34 +21,34 @@ function getReasonList(scan) {
   const probability = Number(scan.fake_probability) || 0
 
   if ((Number(scan.username_randomness_score) || 0) > 0.4) {
-    reasons.push("Username randomness detected")
+    reasons.push("Username structure contains randomness signals commonly seen in automated or disposable accounts")
   }
 
   if (Number(scan.has_profile_image) === 0) {
-    reasons.push("Missing profile image")
+    reasons.push("Profile metadata lacks normal authenticity indicators, including a recognizable profile image")
   }
 
   if ((Number(scan.bio_length) || 0) < 10) {
-    reasons.push("Very short biography")
+    reasons.push("Profile biography is too sparse to provide normal identity or context signals")
   }
 
   if ((Number(scan.content_density) || 0) > 50) {
-    reasons.push("Abnormal posting activity")
+    reasons.push("Posting density significantly exceeds normal human activity baseline for the account age")
   }
 
   if ((Number(scan.follower_following_ratio) || 0) > 100) {
-    reasons.push("Highly lopsided follower ratio")
+    reasons.push("Follower graph is highly asymmetric, which can indicate artificial audience shaping")
   }
 
   if ((Number(scan.growth_signal) || 0) < 0.5 && (Number(scan.account_age_days) || 0) > 180) {
-    reasons.push("Weak follower growth for account age")
+    reasons.push("Follower growth is unusually weak relative to account age, reducing authenticity confidence")
   }
 
   if (reasons.length === 0) {
     reasons.push(
       probability >= 0.5
-        ? "Several account signals differ from typical real profiles"
-        : "Risk score is driven by a low suspiciousness profile."
+        ? "Multiple account signals deviate from the baseline profile of a typical authentic account"
+        : "Observed account signals are aligned with the baseline profile of a typical authentic account"
     )
   }
 
@@ -58,7 +59,8 @@ export default function ExplanationPanel({ scan }) {
   const reasons = getReasonList(scan)
   const probability = getProbabilityValue(scan)
   const confidence = getConfidenceValue(scan)
-  const tone = getRiskTone(probability, confidence, scan?.risk_level || scan?.label)
+  const tone = getRiskTone(probability, confidence, scan?.risk_level || scan?.risk_code || scan?.label)
+  const confidenceBand = scan?.confidence_band || getConfidenceBand(confidence)
 
   return (
     <section
@@ -85,6 +87,7 @@ export default function ExplanationPanel({ scan }) {
               <span>{scan.label || "unknown"}</span>
               <span>{probability}% suspicious</span>
               <span>{confidence}% confidence</span>
+              <span>{confidenceBand}</span>
               <span style={createBadgeStyle(tone.color)}>{tone.label}</span>
             </div>
             <div style={{ display: "none" }}>

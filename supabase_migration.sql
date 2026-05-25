@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS public.scans (
 );
 
 ALTER TABLE public.scans
+  ADD COLUMN IF NOT EXISTS id                          bigserial,
   ADD COLUMN IF NOT EXISTS created_at                  timestamptz NOT NULL DEFAULT now(),
   ADD COLUMN IF NOT EXISTS scan_id                     text    DEFAULT '',
   ADD COLUMN IF NOT EXISTS platform                    text    DEFAULT 'twitter',
@@ -33,7 +34,10 @@ ALTER TABLE public.scans
   ADD COLUMN IF NOT EXISTS label                       text    DEFAULT '',
   ADD COLUMN IF NOT EXISTS fake_probability            float8  DEFAULT 0,
   ADD COLUMN IF NOT EXISTS confidence                  float8  DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS confidence_band             text    DEFAULT '',
+  ADD COLUMN IF NOT EXISTS risk_code                   text    DEFAULT '',
   ADD COLUMN IF NOT EXISTS risk_level                  text    DEFAULT '',
+  ADD COLUMN IF NOT EXISTS threat_label                text    DEFAULT '',
   ADD COLUMN IF NOT EXISTS explanation                 jsonb   DEFAULT '[]'::jsonb,
   ADD COLUMN IF NOT EXISTS raw_metrics                 jsonb   DEFAULT '{}'::jsonb;
 

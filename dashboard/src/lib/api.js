@@ -18,10 +18,18 @@ export function fetchModelMetrics() {
   return fetchJson("/metrics")
 }
 
+export function fetchHealth() {
+  return fetchJson("/")
+}
+
 export function fetchFeatureImportance() {
   return fetchJson("/feature-importance")
 }
 
 export function fetchModelInfo() {
   return fetchJson("/model-info")
+}
+
+export function fetchScanReport(scanId) {
+  return fetchJson(`/scan-report/${encodeURIComponent(scanId)}`)
 }

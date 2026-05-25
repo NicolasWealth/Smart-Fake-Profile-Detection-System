@@ -3,6 +3,7 @@ import { motion } from "framer-motion"
 import {
   cardStyle,
   createBadgeStyle,
+  getConfidenceBand,
   getConfidenceValue,
   getProbabilityValue,
   getRiskTone,
@@ -12,7 +13,8 @@ import {
 export default function ConfidenceGauge({ scan }) {
   const probability = getProbabilityValue(scan)
   const confidence = getConfidenceValue(scan)
-  const tone = getRiskTone(probability, confidence, scan?.risk_level || scan?.label)
+  const tone = getRiskTone(probability, confidence, scan?.risk_level || scan?.risk_code || scan?.label)
+  const confidenceBand = scan?.confidence_band || getConfidenceBand(confidence)
   const fill = Math.min(Math.max(probability, 0), 100)
 
   return (
@@ -56,10 +58,10 @@ export default function ConfidenceGauge({ scan }) {
         </div>
         <div style={{ padding: 14, borderRadius: 16, background: "rgba(255,255,255,0.04)" }}>
           <div style={{ color: theme.muted, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-            Probability Band
+            Confidence Band
           </div>
           <div style={{ marginTop: 8, fontSize: 24, fontWeight: 700, color: tone.color }}>
-            {scan ? `${Math.max(0, 100 - probability)}-${probability}` : "--"}
+            {scan ? confidenceBand : "--"}
           </div>
         </div>
       </div>

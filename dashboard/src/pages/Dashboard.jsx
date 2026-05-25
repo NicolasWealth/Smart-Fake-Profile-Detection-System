@@ -4,6 +4,7 @@ import { motion } from "framer-motion"
 
 import ConfidenceGauge from "../components/ConfidenceGauge.jsx"
 import DatasetOverview from "../components/DatasetOverview.jsx"
+import DetectionHistoryProfile from "../components/DetectionHistoryProfile.jsx"
 import ExplanationPanel from "../components/ExplanationPanel.jsx"
 import FakeVsRealChart from "../components/FakeVsRealChart.jsx"
 import FeatureImportanceChart from "../components/FeatureImportanceChart.jsx"
@@ -13,8 +14,10 @@ import PredictionPie from "../components/PredictionPie.jsx"
 import RecentScansTable from "../components/RecentScansTable.jsx"
 import RiskBarChart from "../components/RiskBarChart.jsx"
 import RocCurveChart from "../components/RocCurveChart.jsx"
+import ScanReportExport from "../components/ScanReportExport.jsx"
 import ScanTimelineChart from "../components/ScanTimelineChart.jsx"
 import StatCard from "../components/StatCard.jsx"
+import SystemStatus from "../components/SystemStatus.jsx"
 import ThreatFeed from "../components/ThreatFeed.jsx"
 import { fetchFeatureImportance, fetchModelInfo, fetchModelMetrics } from "../lib/api.js"
 import { createBadgeStyle, getConfidenceValue, getProbabilityValue, getRiskTone, theme } from "../lib/dashboardTheme.js"
@@ -55,6 +58,7 @@ export default function Dashboard() {
   const [selectedScanKey, setSelectedScanKey] = useState(null)
   const [scanError, setScanError] = useState(supabase ? "" : SUPABASE_UNAVAILABLE_MESSAGE)
   const [loadingScans, setLoadingScans] = useState(Boolean(supabase))
+  const [realtimeStatus, setRealtimeStatus] = useState(supabase ? "CONNECTING" : "UNAVAILABLE")
   const [metrics, setMetrics] = useState(null)
   const [metricsError, setMetricsError] = useState("")
   const [importance, setImportance] = useState(null)
@@ -118,6 +122,12 @@ export default function Dashboard() {
           return
         }
 
+        setRealtimeStatus(status)
+
+        if (status === "SUBSCRIBED") {
+          setScanError("")
+        }
+
         if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
           setScanError("Supabase realtime connection failed. Check Realtime is enabled for public.scans.")
         }
@@ -175,6 +185,7 @@ export default function Dashboard() {
 
   const selectedScan =
     scans.find((scan) => getScanKey(scan) === selectedScanKey) ?? scans[0] ?? null
+  const lastScan = scans[0] ?? null
 
   const fakeCount = scans.filter((scan) => scan.label === "fake").length
   const realCount = scans.filter((scan) => scan.label === "real").length
@@ -316,6 +327,22 @@ export default function Dashboard() {
           gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))"
         }}
       >
+        <SystemStatus
+          realtimeStatus={realtimeStatus}
+          lastScan={lastScan}
+          modelInfo={modelInfo}
+          telemetryError={modelInfoError}
+        />
+        <ScanReportExport scan={selectedScan} />
+      </section>
+
+      <section
+        style={{
+          display: "grid",
+          gap: 16,
+          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))"
+        }}
+      >
         <ModelMetrics
           metrics={metrics}
           loading={loadingTelemetry}
@@ -363,6 +390,11 @@ export default function Dashboard() {
       </section>
 
       <ScanTimelineChart scans={scans} />
+
+      <DetectionHistoryProfile
+        scans={scans}
+        selectedScan={selectedScan}
+      />
 
       <section
         style={{

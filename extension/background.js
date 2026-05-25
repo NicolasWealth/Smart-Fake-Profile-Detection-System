@@ -122,7 +122,10 @@ async function handleScanRequest(payload) {
     label: result.label,
     fake_probability: result.fake_probability || 0,
     confidence: result.confidence || 0,
-    risk_level: result.risk_level || "Low",
+    confidence_band: result.confidence_band || "",
+    risk_code: result.risk_code || "",
+    risk_level: result.risk_level || "Low Risk",
+    threat_label: result.threat_label || result.risk_level || "Low Risk",
     explanation: result.explanation || []
   }
 

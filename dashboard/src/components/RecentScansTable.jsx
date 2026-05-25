@@ -2,6 +2,7 @@ import {
   cardStyle,
   createBadgeStyle,
   formatTimestamp,
+  getConfidenceBand,
   getConfidenceValue,
   getProbabilityValue,
   getRiskTone,
@@ -32,6 +33,7 @@ export default function RecentScansTable({ scans, selectedScanKey, onSelect }) {
               <th style={{ paddingBottom: 12 }}>Platform</th>
               <th style={{ paddingBottom: 12 }}>Risk</th>
               <th style={{ paddingBottom: 12 }}>Confidence</th>
+              <th style={{ paddingBottom: 12 }}>Band</th>
               <th style={{ paddingBottom: 12 }}>Created</th>
             </tr>
           </thead>
@@ -41,7 +43,8 @@ export default function RecentScansTable({ scans, selectedScanKey, onSelect }) {
               const isSelected = rowKey === selectedScanKey
               const probability = getProbabilityValue(scan)
               const confidence = getConfidenceValue(scan)
-              const tone = getRiskTone(probability, confidence, scan.risk_level || scan.label)
+              const tone = getRiskTone(probability, confidence, scan.risk_level || scan.risk_code || scan.label)
+              const confidenceBand = scan.confidence_band || getConfidenceBand(confidence)
 
               return (
                 <tr
@@ -61,6 +64,7 @@ export default function RecentScansTable({ scans, selectedScanKey, onSelect }) {
                     <span style={createBadgeStyle(tone.color)}>{tone.label}</span>
                   </td>
                   <td style={{ padding: "12px 0", color: theme.text }}>{confidence}%</td>
+                  <td style={{ padding: "12px 0", color: theme.muted }}>{confidenceBand}</td>
                   <td style={{ padding: "12px 0", color: theme.muted }}>
                     {formatTimestamp(scan.created_at)}
                   </td>

@@ -3,11 +3,32 @@ import json
 import math
 import os
 import pandas as pd
-from fastapi import FastAPI
+from datetime import datetime, timezone
+from fastapi import FastAPI, HTTPException, Request as FastAPIRequest
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from urllib import error, request
+from urllib import error, parse, request
 import logging
+
+try:
+    from slowapi import Limiter
+    from slowapi.errors import RateLimitExceeded
+    from slowapi.util import get_remote_address
+    from slowapi import _rate_limit_exceeded_handler
+except ImportError:
+    RateLimitExceeded = None
+
+    def get_remote_address(_request):
+        return "local"
+
+    class Limiter:
+        def __init__(self, key_func):
+            self.key_func = key_func
+
+        def limit(self, _limit_value):
+            def decorator(func):
+                return func
+            return decorator
 
 DEFAULT_MODEL_FEATURES = [
     "followers_count",
@@ -31,6 +52,26 @@ DEFAULT_MODEL_FEATURES = [
     "username_length",
 ]
 
+THREAT_LABELS = {
+    "HIGH": "Automated Threat",
+    "MEDIUM": "Suspicious Behavior",
+    "LOW": "Low Risk",
+    "UNCERTAIN": "Insufficient Evidence",
+    "REAL": "Authentic Profile",
+}
+
+THREAT_CODES_BY_LABEL = {
+    label.upper(): code
+    for code, label in THREAT_LABELS.items()
+}
+
+CONFIDENCE_BANDS = [
+    (0.95, "Critical Confidence"),
+    (0.80, "Strong Confidence"),
+    (0.60, "Moderate Confidence"),
+    (0.00, "Low Confidence"),
+]
+
 FEATURE_BOUNDS = {
     "followers_count": (0, 1000000000),
     "following_count": (0, 1000000),
@@ -48,7 +89,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_ALLOWED_ORIGINS = [
     "chrome-extension://oeagfaaaaigiihdcdombadijdcfppljk",
-    "https://ai-fake-twitter-profile-detection.vercel.app/",
+    "https://ai-fake-twitter-profile-detection.vercel.app",
 ]
 
 
@@ -61,10 +102,17 @@ def get_allowed_origins():
     return [*DEFAULT_ALLOWED_ORIGINS, *extra_origins]
 
 
+limiter = Limiter(key_func=get_remote_address)
+
+
 app = FastAPI(
     title="Fake Profile Detection AI",
     version="1.0.0"
 )
+
+app.state.limiter = limiter
+if RateLimitExceeded is not None:
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -243,7 +291,10 @@ def build_feature_frame(data):
     )
 
 
-def build_risk_level(probability):
+def build_risk_code(probability, confidence):
+    if confidence < 0.6:
+        return "UNCERTAIN"
+
     score = probability * 100
 
     if score >= 70:
@@ -258,42 +309,92 @@ def build_risk_level(probability):
     return "REAL"
 
 
+def build_confidence_band(confidence):
+    for lower_bound, label in CONFIDENCE_BANDS:
+        if confidence >= lower_bound:
+            return label
+
+    return "Low Confidence"
+
+
+def build_threat_label(risk_code):
+    return THREAT_LABELS.get(risk_code, THREAT_LABELS["UNCERTAIN"])
+
+
+def normalize_risk_code(value):
+    normalized = str(value or "").upper()
+    if normalized in THREAT_LABELS:
+        return normalized
+    return THREAT_CODES_BY_LABEL.get(normalized, "UNCERTAIN")
+
+
 def build_explanation(row, probability):
     reasons = []
 
     if row["follower_following_ratio"] >= 1000:
-        reasons.append("Extremely high follower ratio")
+        reasons.append(
+            "Follower-to-following ratio is extreme enough to indicate "
+            "non-organic audience acquisition patterns"
+        )
 
     if row["username_randomness_score"] > 0.4:
-        reasons.append("Username randomness detected")
+        reasons.append(
+            "Username structure contains randomness signals commonly seen in "
+            "automated or disposable accounts"
+        )
 
     if row["has_profile_image"] == 0:
-        reasons.append("Missing profile image")
+        reasons.append(
+            "Profile metadata lacks normal authenticity indicators, including "
+            "a recognizable profile image"
+        )
 
     if row["bio_length"] < 10:
-        reasons.append("Very short biography")
+        reasons.append(
+            "Profile biography is too sparse to provide normal identity or "
+            "context signals"
+        )
 
     if row["content_density"] > 50:
-        reasons.append("Abnormal posting activity")
+        reasons.append(
+            "Posting density significantly exceeds normal human activity "
+            "baseline for the account age"
+        )
 
     if row["tweets_per_day"] > 50 or row["activity_score"] > 50:
-        reasons.append("Very high daily posting volume")
+        reasons.append(
+            "Daily posting frequency significantly exceeds normal human "
+            "activity baseline"
+        )
 
     if row["growth_signal"] < 0.5 and row["account_age_days"] > 180:
-        reasons.append("Weak follower growth for account age")
+        reasons.append(
+            "Follower growth is unusually weak relative to account age, which "
+            "reduces account authenticity confidence"
+        )
 
     if row["engagement_proxy"] > 1000000 and row["verified"] == 0:
-        reasons.append("Large reach proxy without verification")
+        reasons.append(
+            "Reach proxy is unusually large for an unverified account, creating "
+            "a credibility mismatch"
+        )
 
     if row["ratio_log"] > 2.5 and row["following_count"] < 20:
-        reasons.append("Highly lopsided follower pattern")
+        reasons.append(
+            "Follower graph is highly asymmetric, which can indicate artificial "
+            "audience shaping"
+        )
 
     if row["verified"] == 0 and row["followers_count"] > 1000000:
-        reasons.append("Large audience without verification")
+        reasons.append(
+            "Large audience size without verification increases impersonation "
+            "and automation risk"
+        )
 
     if not reasons and probability >= 0.5:
         reasons.append(
-            "Several account signals differ from typical real profiles"
+            "Multiple account signals deviate from the baseline profile of a "
+            "typical authentic account"
         )
 
     return reasons
@@ -372,6 +473,69 @@ def insert_supabase_scan(row):
     }
 
 
+def fetch_supabase_scan(scan_id):
+    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY on server"
+        )
+
+    encoded_scan_id = parse.quote(scan_id, safe="")
+    endpoint = (
+        f"{SUPABASE_URL}/rest/v1/{SUPABASE_TABLE}"
+        f"?scan_id=eq.{encoded_scan_id}&select=*&order=created_at.desc&limit=1"
+    )
+    headers = {
+        "apikey": SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}"
+    }
+    req = request.Request(endpoint, headers=headers, method="GET")
+
+    try:
+        with request.urlopen(req) as response:
+            rows = json.loads(response.read().decode("utf-8"))
+    except error.HTTPError as exc:
+        error_text = exc.read().decode("utf-8", errors="replace")
+        raise HTTPException(status_code=exc.code, detail=error_text) from exc
+    except error.URLError as exc:
+        raise HTTPException(status_code=502, detail=str(exc.reason)) from exc
+
+    if not rows:
+        raise HTTPException(status_code=404, detail="Scan report not found")
+
+    return rows[0]
+
+
+def build_scan_report(row):
+    features = {
+        feature: row.get(feature, 0)
+        for feature in MODEL_FEATURES
+    }
+    confidence = to_number(row.get("confidence"))
+    risk_code = normalize_risk_code(row.get("risk_code") or row.get("risk_level"))
+    threat_label = row.get("threat_label") or build_threat_label(risk_code)
+
+    return {
+        "scan_id": row.get("scan_id", ""),
+        "username": row.get("username", ""),
+        "platform": row.get("platform", "twitter"),
+        "prediction": row.get("prediction"),
+        "label": row.get("label", ""),
+        "risk_code": risk_code,
+        "risk_level": threat_label,
+        "threat_label": threat_label,
+        "confidence": confidence,
+        "confidence_band": (
+            row.get("confidence_band") or build_confidence_band(confidence)
+        ),
+        "explanation": row.get("explanation") or [],
+        "timestamp": row.get("created_at"),
+        "features": features,
+        "model_name": MODEL_NAME,
+        "model_version": MODEL_VERSION,
+    }
+
+
 class ScanInput(BaseModel):
     followers_count: int
     following_count: int
@@ -424,8 +588,14 @@ def feature_importance():
     return load_json_file(FEATURE_IMPORTANCE_PATH, DEFAULT_FEATURE_IMPORTANCE)
 
 
+@app.get("/scan-report/{scan_id}")
+def scan_report(scan_id: str):
+    return build_scan_report(fetch_supabase_scan(scan_id))
+
+
 @app.post("/predict")
-def predict(data: ScanInput):
+@limiter.limit("30/minute")
+def predict(request: FastAPIRequest, data: ScanInput):
     feature_row = build_feature_row(data)
     df = pd.DataFrame(
         [[feature_row.get(feature, 0) for feature in MODEL_FEATURES]],
@@ -434,9 +604,12 @@ def predict(data: ScanInput):
     proba = round(float(model.predict_proba(df)[0][1]), 4)
     prediction = int(proba >= threshold)
     confidence = round(proba if prediction == 1 else 1 - proba, 4)
-    risk_level = build_risk_level(proba)
+    risk_code = build_risk_code(proba, confidence)
+    threat_label = build_threat_label(risk_code)
+    confidence_band = build_confidence_band(confidence)
     explanation = build_explanation(feature_row, proba)
     supabase_row = {
+        "created_at": datetime.now(timezone.utc).isoformat(),
         "platform": data.platform or "twitter",
         "scan_id": data.scan_id or "",
         "username": data.username or "",
@@ -446,19 +619,26 @@ def predict(data: ScanInput):
         "label": "fake" if prediction == 1 else "real",
         "fake_probability": proba,
         "confidence": confidence,
-        "risk_level": risk_level,
+        "risk_code": risk_code,
+        "risk_level": threat_label,
+        "threat_label": threat_label,
+        "confidence_band": confidence_band,
         "explanation": explanation
     }
     supabase_result = insert_supabase_scan(supabase_row)
-    logger.info(
-        "Prediction=%s Confidence=%.2f Risk=%s ScanId=%s User=%s Platform=%s",
-        prediction,
-        confidence,
-        risk_level,
-        data.scan_id or "-",
-        data.username or "-",
-        data.platform or "twitter"
-    )
+    logger.info(json.dumps({
+        "event": "scan_prediction",
+        "scan_id": data.scan_id or "",
+        "platform": data.platform or "twitter",
+        "username": data.username or "",
+        "prediction": prediction,
+        "label": "fake" if prediction == 1 else "real",
+        "confidence": confidence,
+        "confidence_band": confidence_band,
+        "risk_code": risk_code,
+        "risk_level": threat_label,
+        "supabase_saved": bool(supabase_result.get("ok"))
+    }))
 
     return {
         "prediction": prediction,
@@ -469,7 +649,10 @@ def predict(data: ScanInput):
         "model_name": MODEL_NAME,
         "model_version": MODEL_VERSION,
         "confidence": confidence,
-        "risk_level": risk_level,
+        "confidence_band": confidence_band,
+        "risk_code": risk_code,
+        "risk_level": threat_label,
+        "threat_label": threat_label,
         "explanation": explanation,
         "features": feature_row,
         "supabase": supabase_result

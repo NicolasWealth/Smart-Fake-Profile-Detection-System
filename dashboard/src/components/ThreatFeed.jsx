@@ -19,6 +19,7 @@ import {
   cardStyle,
   createBadgeStyle,
   formatTimestamp,
+  getConfidenceBand,
   getConfidenceValue,
   getProbabilityValue,
   getRiskTone,
@@ -142,7 +143,8 @@ export default function ThreatFeed({ scans, selectedScanKey, onSelect }) {
               const rowKey = getRowKey(scan)
               const probability = getProbabilityValue(scan)
               const confidence = getConfidenceValue(scan)
-              const tone = getRiskTone(probability, confidence, scan.risk_level || scan.label)
+              const tone = getRiskTone(probability, confidence, scan.risk_level || scan.risk_code || scan.label)
+              const confidenceBand = scan.confidence_band || getConfidenceBand(confidence)
               const isSelected = rowKey === selectedScanKey
 
               return (
@@ -151,7 +153,7 @@ export default function ThreatFeed({ scans, selectedScanKey, onSelect }) {
                   onClick={() => onSelect(rowKey)}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "120px 80px 70px minmax(0, 1fr) 110px",
+                    gridTemplateColumns: "minmax(140px, 1.2fr) 80px 140px minmax(0, 1fr) 110px",
                     gap: 10,
                     alignItems: "center",
                     width: "100%",
@@ -164,9 +166,9 @@ export default function ThreatFeed({ scans, selectedScanKey, onSelect }) {
                     cursor: "pointer"
                   }}
                 >
-                  <span style={{ color: tone.color, fontWeight: 700 }}>{tone.label.toUpperCase()}</span>
+                  <span style={{ color: tone.color, fontWeight: 700 }}>{tone.label}</span>
                   <span style={{ color: theme.muted }}>{scan.platform || "twitter"}</span>
-                  <span style={{ color: theme.text }}>{confidence}%</span>
+                  <span style={{ color: theme.text }}>{confidenceBand}</span>
                   <span style={{ color: theme.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     @{scan.username || "unknown"}
                   </span>

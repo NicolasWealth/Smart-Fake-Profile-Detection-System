@@ -1,0 +1,117 @@
+[
+  {
+    "username": "elonmusk",
+    "platform": "twitter",
+    "expected": "REAL",
+    "expected_label": "Authentic Profile",
+    "expected_confidence_band": "Critical Confidence",
+    "demo_order": 1,
+    "payload": {
+      "followers_count": 180000000,
+      "following_count": 900,
+      "account_age_days": 5600,
+      "statuses_count": 45000,
+      "has_profile_image": 1,
+      "verified": 1,
+      "bio_length": 48,
+      "username_randomness_score": 0.02,
+      "username_length": 8,
+      "username": "elonmusk",
+      "platform": "twitter",
+      "scan_id": "demo-elonmusk-real"
+    },
+    "presentation_note": "Baseline authentic celebrity profile with strong identity and verification signals."
+  },
+  {
+    "username": "obvious_fake_crypto",
+    "platform": "twitter",
+    "expected": "HIGH",
+    "expected_label": "Automated Threat",
+    "expected_confidence_band": "Strong Confidence",
+    "demo_order": 2,
+    "payload": {
+      "followers_count": 210000,
+      "following_count": 7,
+      "account_age_days": 18,
+      "statuses_count": 12500,
+      "has_profile_image": 0,
+      "verified": 0,
+      "bio_length": 7,
+      "username_randomness_score": 0.82,
+      "username_length": 19,
+      "username": "obvious_fake_crypto",
+      "platform": "twitter",
+      "scan_id": "demo-obvious-fake-crypto"
+    },
+    "presentation_note": "High-risk automation pattern with sparse metadata, rapid posting, and asymmetric follower graph."
+  },
+  {
+    "username": "new_empty_account",
+    "platform": "twitter",
+    "expected": "UNCERTAIN",
+    "expected_label": "Insufficient Evidence",
+    "expected_confidence_band": "Low Confidence",
+    "demo_order": 3,
+    "payload": {
+      "followers_count": 1,
+      "following_count": 2,
+      "account_age_days": 2,
+      "statuses_count": 0,
+      "has_profile_image": 0,
+      "verified": 0,
+      "bio_length": 0,
+      "username_randomness_score": 0.28,
+      "username_length": 17,
+      "username": "new_empty_account",
+      "platform": "twitter",
+      "scan_id": "demo-new-empty-account"
+    },
+    "presentation_note": "Sparse new profile for uncertain/low-evidence demo states and stable screenshots."
+  },
+  {
+    "username": "giveaway_bot_2401",
+    "platform": "twitter",
+    "expected": "MEDIUM",
+    "expected_label": "Suspicious Behavior",
+    "expected_confidence_band": "Moderate Confidence",
+    "demo_order": 4,
+    "payload": {
+      "followers_count": 850,
+      "following_count": 4800,
+      "account_age_days": 110,
+      "statuses_count": 6800,
+      "has_profile_image": 1,
+      "verified": 0,
+      "bio_length": 16,
+      "username_randomness_score": 0.51,
+      "username_length": 17,
+      "username": "giveaway_bot_2401",
+      "platform": "twitter",
+      "scan_id": "demo-giveaway-bot-2401"
+    },
+    "presentation_note": "Mid-risk behavior pattern for dashboard transitions between benign and high-risk scans."
+  },
+  {
+    "username": "quiet_researcher",
+    "platform": "twitter",
+    "expected": "LOW",
+    "expected_label": "Low Risk",
+    "expected_confidence_band": "Strong Confidence",
+    "demo_order": 5,
+    "payload": {
+      "followers_count": 320,
+      "following_count": 410,
+      "account_age_days": 1200,
+      "statuses_count": 860,
+      "has_profile_image": 1,
+      "verified": 0,
+      "bio_length": 72,
+      "username_randomness_score": 0.08,
+      "username_length": 16,
+      "username": "quiet_researcher",
+      "platform": "twitter",
+      "scan_id": "demo-quiet-researcher"
+    },
+    "presentation_note": "Low-risk non-verified profile with normal activity and complete metadata."
+  }
+]
