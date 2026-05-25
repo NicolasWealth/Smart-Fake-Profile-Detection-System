@@ -1,5 +1,13 @@
--- Run this in Supabase → SQL Editor → New Query
+-- Run this in Supabase -> SQL Editor -> New Query.
+
+CREATE TABLE IF NOT EXISTS public.scans (
+  id bigserial PRIMARY KEY,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
 ALTER TABLE public.scans
+  ADD COLUMN IF NOT EXISTS created_at                  timestamptz NOT NULL DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS scan_id                     text    DEFAULT '',
   ADD COLUMN IF NOT EXISTS platform                    text    DEFAULT 'twitter',
   ADD COLUMN IF NOT EXISTS username                    text    DEFAULT '',
   ADD COLUMN IF NOT EXISTS followers_count             int8    DEFAULT 0,
@@ -23,4 +31,43 @@ ALTER TABLE public.scans
   ADD COLUMN IF NOT EXISTS username_length             int4    DEFAULT 0,
   ADD COLUMN IF NOT EXISTS prediction                  int4    DEFAULT 0,
   ADD COLUMN IF NOT EXISTS label                       text    DEFAULT '',
-  ADD COLUMN IF NOT EXISTS fake_probability            float8  DEFAULT 0;
+  ADD COLUMN IF NOT EXISTS fake_probability            float8  DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS confidence                  float8  DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS risk_level                  text    DEFAULT '',
+  ADD COLUMN IF NOT EXISTS explanation                 jsonb   DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS raw_metrics                 jsonb   DEFAULT '{}'::jsonb;
+
+CREATE INDEX IF NOT EXISTS scans_created_at_idx
+  ON public.scans (created_at DESC);
+
+CREATE INDEX IF NOT EXISTS scans_scan_id_idx
+  ON public.scans (scan_id);
+
+ALTER TABLE public.scans ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow public read scans" ON public.scans;
+CREATE POLICY "Allow public read scans"
+  ON public.scans
+  FOR SELECT
+  TO anon
+  USING (true);
+
+DROP POLICY IF EXISTS "Allow public insert scans" ON public.scans;
+CREATE POLICY "Allow public insert scans"
+  ON public.scans
+  FOR INSERT
+  TO anon
+  WITH CHECK (true);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'scans'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.scans;
+  END IF;
+END $$;

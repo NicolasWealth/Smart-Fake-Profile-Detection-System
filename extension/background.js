@@ -113,6 +113,7 @@ async function handleScanRequest(payload) {
 
   const result = await res.json()
   const serverSupabaseResult = result?.supabase
+  let clientSupabaseResult = null
 
   const supabaseBody = {
     ...payload,
@@ -132,6 +133,7 @@ async function handleScanRequest(payload) {
     console.log("[FPD] Sending to Supabase:", supabaseBody)
 
     const supabaseResult = await insertSupabaseScan(supabaseBody)
+    clientSupabaseResult = supabaseResult
 
     if (!supabaseResult.ok) {
       console.error("[FPD] Supabase error:", supabaseResult.status, supabaseResult.errorText)
@@ -145,6 +147,9 @@ async function handleScanRequest(payload) {
   } else {
     console.log("[FPD] Server-side Supabase result:", serverSupabaseResult)
   }
+
+  result.supabase_saved = Boolean(serverSupabaseResult?.ok || clientSupabaseResult?.ok)
+  result.client_supabase = clientSupabaseResult
 
   return result
 }

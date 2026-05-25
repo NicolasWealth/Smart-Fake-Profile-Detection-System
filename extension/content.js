@@ -95,6 +95,13 @@ function scanProfile() {
       lastCompletedPath = path
 
       const data = response.data
+      if (data.supabase_saved === false) {
+        console.warn("[FPD] Scan completed but was not saved to Supabase:", {
+          server: data.supabase,
+          client: data.client_supabase
+        })
+      }
+
       const explanation =
         generateExplanation(payload, data)
 

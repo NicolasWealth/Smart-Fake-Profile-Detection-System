@@ -3,4 +3,11 @@ services:
     name: fake-profile-api
     env: python
     buildCommand: pip install -r ai/requirements.txt
-    startCommand: uvicorn ai.app:app --host 0.0.0.0 --port 10000
+    startCommand: uvicorn ai.app:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: SUPABASE_URL
+        value: https://zoxmchlwfxnudopusksr.supabase.co
+      - key: SUPABASE_TABLE
+        value: scans
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false

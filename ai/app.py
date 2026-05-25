@@ -46,6 +46,21 @@ FEATURE_BOUNDS = {
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+DEFAULT_ALLOWED_ORIGINS = [
+    "chrome-extension://oeagfaaaaigiihdcdombadijdcfppljk",
+    "https://ai-fake-twitter-profile-detection.vercel.app/",
+]
+
+
+def get_allowed_origins():
+    extra_origins = [
+        origin.strip()
+        for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
+    return [*DEFAULT_ALLOWED_ORIGINS, *extra_origins]
+
+
 app = FastAPI(
     title="Fake Profile Detection AI",
     version="1.0.0"
@@ -53,7 +68,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=get_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

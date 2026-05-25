@@ -113,7 +113,15 @@ export default function Dashboard() {
           setSelectedScanKey((current) => current ?? getScanKey(newScan))
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (cancelled) {
+          return
+        }
+
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          setScanError("Supabase realtime connection failed. Check Realtime is enabled for public.scans.")
+        }
+      })
 
     return () => {
       cancelled = true
