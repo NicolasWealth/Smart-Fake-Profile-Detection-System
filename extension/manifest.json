@@ -14,6 +14,8 @@
         "https://x.com/*"
       ],
       "js": [
+        "shared/extractor.js",
+        "shared/normalizer.js",
         "shared/featureEngineering.js",
         "shared/explain.js",
         "shared/risk.js",
@@ -28,6 +30,8 @@
         "https://instagram.com/*"
       ],
       "js": [
+        "shared/extractor.js",
+        "shared/normalizer.js",
         "shared/featureEngineering.js",
         "shared/explain.js",
         "shared/risk.js",

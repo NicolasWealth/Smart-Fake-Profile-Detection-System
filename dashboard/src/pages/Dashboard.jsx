@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Activity, AlertTriangle, Shield, Waypoints } from "lucide-react"
 import { motion } from "framer-motion"
 
@@ -8,6 +8,7 @@ import DetectionHistoryProfile from "../components/DetectionHistoryProfile.jsx"
 import ExplanationPanel from "../components/ExplanationPanel.jsx"
 import FakeVsRealChart from "../components/FakeVsRealChart.jsx"
 import FeatureImportanceChart from "../components/FeatureImportanceChart.jsx"
+import LivePulseIndicator from "../components/LivePulseIndicator.jsx"
 import ModelMetrics from "../components/ModelMetrics.jsx"
 import PlatformDistribution from "../components/PlatformDistribution.jsx"
 import PlatformOverview from "../components/PlatformOverview.jsx"
@@ -17,6 +18,7 @@ import RiskBarChart from "../components/RiskBarChart.jsx"
 import RocCurveChart from "../components/RocCurveChart.jsx"
 import ScanReportExport from "../components/ScanReportExport.jsx"
 import ScanTimelineChart from "../components/ScanTimelineChart.jsx"
+import SearchBar from "../components/SearchBar.jsx"
 import StatCard from "../components/StatCard.jsx"
 import SystemStatus from "../components/SystemStatus.jsx"
 import ThreatFeed from "../components/ThreatFeed.jsx"
@@ -56,6 +58,8 @@ function mergeScans(current, incoming) {
 
 export default function Dashboard() {
   const [scans, setScans] = useState([])
+  const [filteredScans, setFilteredScans] = useState([])
+  const [isFiltering, setIsFiltering] = useState(false)
   const [selectedScanKey, setSelectedScanKey] = useState(null)
   const [scanError, setScanError] = useState(supabase ? "" : SUPABASE_UNAVAILABLE_MESSAGE)
   const [loadingScans, setLoadingScans] = useState(Boolean(supabase))
@@ -184,8 +188,23 @@ export default function Dashboard() {
     }
   }, [])
 
+  // Keep filteredScans in sync with the full scans list when not actively filtering
+  useEffect(() => {
+    if (!isFiltering) {
+      setFilteredScans(scans)
+    }
+  }, [scans, isFiltering])
+
+  const handleFilteredResults = useCallback((results, active) => {
+    setIsFiltering(active)
+    setFilteredScans(active ? results : scans)
+  }, [scans])
+
+  // Use filteredScans for display, but always use full scans for stats
+  const displayScans = isFiltering ? filteredScans : scans
+
   const selectedScan =
-    scans.find((scan) => getScanKey(scan) === selectedScanKey) ?? scans[0] ?? null
+    displayScans.find((scan) => getScanKey(scan) === selectedScanKey) ?? displayScans[0] ?? null
   const lastScan = scans[0] ?? null
 
   const fakeCount = scans.filter((scan) => scan.label === "fake").length
@@ -262,6 +281,12 @@ export default function Dashboard() {
               minWidth: 0
             }}
           >
+            {/* Live Pulse Indicator */}
+            <LivePulseIndicator
+              realtimeStatus={realtimeStatus}
+              lastScan={lastScan}
+              scans={scans}
+            />
             <div style={{ ...createBadgeStyle(theme.amber), justifyContent: "space-between" }}>
               <span>Average confidence</span>
               <strong>{averageConfidence}%</strong>
@@ -315,8 +340,17 @@ export default function Dashboard() {
       {loadingScans && <p style={{ color: theme.muted }}>Loading scan feed...</p>}
       {scanError && <p style={{ color: theme.amber }}>{scanError}</p>}
 
+      {/* Search Bar */}
+      <SearchBar scans={scans} onFilteredResults={handleFilteredResults} />
+
+      {isFiltering && (
+        <p style={{ color: theme.muted, fontSize: 13, marginTop: -8 }}>
+          Showing {displayScans.length} of {scans.length} scans
+        </p>
+      )}
+
       <ThreatFeed
-        scans={scans}
+        scans={displayScans}
         selectedScanKey={selectedScan ? getScanKey(selectedScan) : null}
         onSelect={setSelectedScanKey}
       />
@@ -385,17 +419,17 @@ export default function Dashboard() {
           alignItems: "stretch"
         }}
       >
-        <PredictionPie scans={scans} />
-        <RiskBarChart scans={scans} />
-        <FakeVsRealChart scans={scans} />
+        <PredictionPie scans={displayScans} />
+        <RiskBarChart scans={displayScans} />
+        <FakeVsRealChart scans={displayScans} />
         <ConfidenceGauge scan={selectedScan} />
-        <PlatformDistribution scans={scans} />
+        <PlatformDistribution scans={displayScans} />
       </section>
 
-      <ScanTimelineChart scans={scans} />
+      <ScanTimelineChart scans={displayScans} />
 
       <DetectionHistoryProfile
-        scans={scans}
+        scans={displayScans}
         selectedScan={selectedScan}
       />
 
@@ -407,7 +441,7 @@ export default function Dashboard() {
         }}
       >
         <RecentScansTable
-          scans={scans}
+          scans={displayScans}
           selectedScanKey={selectedScan ? getScanKey(selectedScan) : null}
           onSelect={setSelectedScanKey}
         />

@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from fastapi import FastAPI, HTTPException, Request as FastAPIRequest
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from typing import Optional
 from urllib import error, parse, request
 import logging
 
@@ -222,19 +223,30 @@ def load_json_file(path, fallback):
 def build_feature_row(data):
     followers = bounded_number(data.followers_count, "followers_count")
     following = bounded_number(data.following_count, "following_count")
-    account_age_days = non_negative(data.account_age_days)
+
+    # fillna(-1): null means the feature was not extractable from the page.
+    # -1 is the sentinel the model was trained to recognise as "unknown".
+    account_age_days_raw = data.account_age_days
+    account_age_days = non_negative(account_age_days_raw) if account_age_days_raw is not None else -1
+
+    bio_length_raw = data.bio_length
+    bio_length = non_negative(bio_length_raw) if bio_length_raw is not None else -1
+
+    # Use account_age_days only in denominators when it is a real value (>= 0)
+    age_denominator = account_age_days if account_age_days >= 0 else 0
+
     statuses_count = non_negative(data.statuses_count)
 
     posts_per_day = round_feature(clamp(
-        statuses_count / (account_age_days + 1),
+        statuses_count / (age_denominator + 1),
         *FEATURE_BOUNDS["posts_per_day"]
     ))
     content_density = round_feature(clamp(
-        statuses_count / max(account_age_days, 1),
+        statuses_count / max(age_denominator, 1),
         *FEATURE_BOUNDS["content_density"]
     ))
     tweets_per_day = round_feature(clamp(
-        statuses_count / (account_age_days + 1),
+        statuses_count / (age_denominator + 1),
         *FEATURE_BOUNDS["tweets_per_day"]
     ))
     engagement_proxy = round_feature(clamp(
@@ -245,21 +257,31 @@ def build_feature_row(data):
     following_log = round_feature(math.log1p(following))
     ratio_log = round_feature(followers_log / (following_log + 1))
     activity_score = round_feature(clamp(
-        statuses_count / (account_age_days + 1),
+        statuses_count / (age_denominator + 1),
         *FEATURE_BOUNDS["activity_score"]
     ))
     growth_signal = round_feature(clamp(
-        followers / (account_age_days + 1),
+        followers / (age_denominator + 1),
         *FEATURE_BOUNDS["growth_signal"]
     ))
+
+    # follower_following_ratio: log10 scale matching the JS normalizer
+    raw_ratio = math.log10((followers + 1) / (following + 1))
+    follower_following_ratio = round_feature(clamp(
+        raw_ratio,
+        *FEATURE_BOUNDS["follower_following_ratio"]
+    ))
+
+    logger.info(
+        "[FPD:preprocess] account_age_days=%s (fillna→%s), bio_length=%s (fillna→%s)",
+        account_age_days_raw, account_age_days,
+        bio_length_raw, bio_length
+    )
 
     return {
         "followers_count": followers,
         "following_count": following,
-        "follower_following_ratio": round_feature(clamp(
-            followers / (following + 1),
-            *FEATURE_BOUNDS["follower_following_ratio"]
-        )),
+        "follower_following_ratio": follower_following_ratio,
         "account_age_days": account_age_days,
         "content_count": statuses_count,
         "statuses_count": statuses_count,
@@ -274,7 +296,7 @@ def build_feature_row(data):
         "growth_signal": growth_signal,
         "has_profile_image": int(clamp(to_number(data.has_profile_image), 0, 1)),
         "verified": int(clamp(to_number(data.verified), 0, 1)),
-        "bio_length": non_negative(data.bio_length),
+        "bio_length": bio_length,
         "username_randomness_score": clamp(
             to_number(data.username_randomness_score),
             0,
@@ -544,12 +566,14 @@ def build_scan_report(row):
 class ScanInput(BaseModel):
     followers_count: int
     following_count: int
-    account_age_days: int
+    # None = feature not extractable from page; backend fills with -1 (fillna sentinel)
+    account_age_days: Optional[int] = None
     content_count: int = 0
     statuses_count: int
     has_profile_image: int
     verified: int
-    bio_length: int
+    # None = bio not extractable; backend fills with -1
+    bio_length: Optional[int] = None
     username_randomness_score: float
     username_length: int
     follower_following_ratio: float = 0.0
