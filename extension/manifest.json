@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Fake Profile Detection",
   "version": "1.0",
-  "description": "Detects fake profiles on Twitter/X using AI.",
+  "description": "Detects fake profiles on Twitter/X and Instagram using AI.",
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -21,6 +21,20 @@
         "content.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.instagram.com/*",
+        "https://instagram.com/*"
+      ],
+      "js": [
+        "shared/featureEngineering.js",
+        "shared/explain.js",
+        "shared/risk.js",
+        "platforms/instagram.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "permissions": [
@@ -30,6 +44,8 @@
     "https://smart-fake-profile-detection.onrender.com/*",
     "https://zoxmchlwfxnudopusksr.supabase.co/*",
     "https://twitter.com/*",
-    "https://x.com/*"
+    "https://x.com/*",
+    "https://www.instagram.com/*",
+    "https://instagram.com/*"
   ]
 }

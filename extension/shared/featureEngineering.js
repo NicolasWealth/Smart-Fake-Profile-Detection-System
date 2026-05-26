@@ -44,6 +44,34 @@ function toFiniteNumber(value) {
   return Number.isFinite(number) ? number : 0
 }
 
+function calcRandomness(username) {
+  if (!username) return 0
+
+  let unusual = 0
+  for (const char of username) {
+    if (/[0-9_]/.test(char)) unusual++
+  }
+
+  return +(unusual / username.length).toFixed(4)
+}
+
+function normalizeBooleanMetric(value) {
+  if (typeof value === "boolean") {
+    return value ? 1 : 0
+  }
+
+  return clamp(toFiniteNumber(value), 0, 1)
+}
+
+function normalizeContentCount(metrics) {
+  return toFiniteNumber(
+    metrics.content_count ??
+    metrics.posts ??
+    metrics.statuses ??
+    metrics.statuses_count
+  )
+}
+
 function roundFeature(value) {
   return Number.isFinite(value) ? +value.toFixed(4) : 0
 }
@@ -59,10 +87,21 @@ function normalizeExtractorOutput(rawProfile) {
   }
 
   if (rawProfile.rawMetrics && typeof rawProfile.rawMetrics === "object") {
+    const metrics = rawProfile.rawMetrics
+
     return {
       platform: rawProfile.platform || "twitter",
-      username: rawProfile.username || "",
-      ...rawProfile.rawMetrics
+      username: rawProfile.username || metrics.username || "",
+      followers_count: metrics.followers_count ?? metrics.followers,
+      following_count: metrics.following_count ?? metrics.following,
+      account_age_days: metrics.account_age_days,
+      statuses_count: normalizeContentCount(metrics),
+      content_count: normalizeContentCount(metrics),
+      has_profile_image: metrics.has_profile_image ?? metrics.profile_picture,
+      verified: metrics.verified,
+      bio_length: metrics.bio_length,
+      username_randomness_score: metrics.username_randomness_score,
+      username_length: metrics.username_length
     }
   }
 
@@ -72,17 +111,23 @@ function normalizeExtractorOutput(rawProfile) {
 function buildMlPayload(rawProfile) {
   const normalizedProfile = normalizeExtractorOutput(rawProfile)
   if (!normalizedProfile) return null
+  const username = normalizedProfile.username || ""
 
   const rawMetrics = {
     followers_count: toFiniteNumber(normalizedProfile.followers_count),
     following_count: toFiniteNumber(normalizedProfile.following_count),
     account_age_days: toFiniteNumber(normalizedProfile.account_age_days),
     statuses_count: toFiniteNumber(normalizedProfile.statuses_count),
-    has_profile_image: toFiniteNumber(normalizedProfile.has_profile_image),
-    verified: toFiniteNumber(normalizedProfile.verified),
+    content_count: toFiniteNumber(normalizedProfile.content_count),
+    has_profile_image: normalizeBooleanMetric(normalizedProfile.has_profile_image),
+    verified: normalizeBooleanMetric(normalizedProfile.verified),
     bio_length: toFiniteNumber(normalizedProfile.bio_length),
-    username_randomness_score: toFiniteNumber(normalizedProfile.username_randomness_score),
-    username_length: toFiniteNumber(normalizedProfile.username_length)
+    username_randomness_score: toFiniteNumber(
+      normalizedProfile.username_randomness_score ?? calcRandomness(username)
+    ),
+    username_length: toFiniteNumber(
+      normalizedProfile.username_length ?? username.length
+    )
   }
 
   const followers = boundedFeature(
@@ -94,7 +139,10 @@ function buildMlPayload(rawProfile) {
     "following_count"
   )
   const accountAgeDays = Math.max(0, rawMetrics.account_age_days)
-  const statuses = Math.max(0, rawMetrics.statuses_count)
+  const contentCount = Math.max(
+    0,
+    rawMetrics.content_count || rawMetrics.statuses_count
+  )
   const hasProfileImage = clamp(rawMetrics.has_profile_image, 0, 1)
   const verified = clamp(rawMetrics.verified, 0, 1)
   const bioLength = Math.max(0, rawMetrics.bio_length)
@@ -110,19 +158,19 @@ function buildMlPayload(rawProfile) {
     )
   const postsPerDay = roundFeature(
     boundedFeature(
-      statuses / (accountAgeDays + 1),
+      contentCount / (accountAgeDays + 1),
       "posts_per_day"
     )
   )
   const contentDensity = roundFeature(
     boundedFeature(
-      statuses / Math.max(accountAgeDays, 1),
+      contentCount / Math.max(accountAgeDays, 1),
       "content_density"
     )
   )
   const tweetsPerDay = roundFeature(
     boundedFeature(
-      statuses / (accountAgeDays + 1),
+      contentCount / (accountAgeDays + 1),
       "tweets_per_day"
     )
   )
@@ -137,7 +185,7 @@ function buildMlPayload(rawProfile) {
   const ratioLog = roundFeature(followersLog / (followingLog + 1))
   const activityScore = roundFeature(
     boundedFeature(
-      statuses / (accountAgeDays + 1),
+      contentCount / (accountAgeDays + 1),
       "activity_score"
     )
   )
@@ -150,13 +198,14 @@ function buildMlPayload(rawProfile) {
 
   return {
     platform: normalizedProfile.platform || "twitter",
-    username: normalizedProfile.username || "",
+    username,
     raw_metrics: rawMetrics,
     followers_count: followers,
     following_count: following,
     follower_following_ratio: followerFollowingRatio,
     account_age_days: accountAgeDays,
-    statuses_count: statuses,
+    content_count: contentCount,
+    statuses_count: contentCount,
     posts_per_day: postsPerDay,
     content_density: contentDensity,
     tweets_per_day: tweetsPerDay,
@@ -176,6 +225,7 @@ function buildMlPayload(rawProfile) {
 
 if (typeof globalThis !== "undefined") {
   globalThis.ML_FEATURE_FIELDS = ML_FEATURE_FIELDS
+  globalThis.calcRandomness = calcRandomness
   globalThis.normalizeExtractorOutput = normalizeExtractorOutput
   globalThis.buildMlPayload = buildMlPayload
 }

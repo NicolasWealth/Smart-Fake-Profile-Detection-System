@@ -70,7 +70,7 @@ function isProfileReady(username) {
   return hasNameHeader && hasFollowersLink && hasFollowingLink
 }
 
-function extractProfileData() {
+function extractTwitterProfile() {
   const username = window.location.pathname.split("/").filter(Boolean)[0] || ""
 
   if (!isProfileReady(username)) {
@@ -134,15 +134,16 @@ function extractProfileData() {
 
   return {
     platform: "twitter",
-    username,
     rawMetrics: {
-      followers_count: followers,
-      following_count: following,
-      account_age_days: accountAgeDays,
-      statuses_count: statuses,
-      has_profile_image: profileImage,
+      username,
+      followers,
+      following,
+      posts: statuses,
+      statuses,
       verified,
       bio_length: bio.length,
+      profile_picture: profileImage,
+      account_age_days: accountAgeDays,
       username_randomness_score: calcRandomness(username),
       username_length: username.length
     }
@@ -154,5 +155,6 @@ if (typeof globalThis !== "undefined") {
   globalThis.getStat = getStat
   globalThis.getStatFromText = getStatFromText
   globalThis.calcRandomness = calcRandomness
-  globalThis.extractProfileData = extractProfileData
+  globalThis.extractTwitterProfile = extractTwitterProfile
+  globalThis.extractProfileData = extractTwitterProfile
 }

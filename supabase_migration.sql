@@ -15,6 +15,7 @@ ALTER TABLE public.scans
   ADD COLUMN IF NOT EXISTS following_count             int8    DEFAULT 0,
   ADD COLUMN IF NOT EXISTS follower_following_ratio    float8  DEFAULT 0,
   ADD COLUMN IF NOT EXISTS account_age_days            int4    DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS content_count               int4    DEFAULT 0,
   ADD COLUMN IF NOT EXISTS statuses_count              int4    DEFAULT 0,
   ADD COLUMN IF NOT EXISTS posts_per_day               float8  DEFAULT 0,
   ADD COLUMN IF NOT EXISTS content_density             float8  DEFAULT 0,

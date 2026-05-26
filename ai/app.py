@@ -261,6 +261,7 @@ def build_feature_row(data):
             *FEATURE_BOUNDS["follower_following_ratio"]
         )),
         "account_age_days": account_age_days,
+        "content_count": statuses_count,
         "statuses_count": statuses_count,
         "posts_per_day": posts_per_day,
         "content_density": content_density,
@@ -511,6 +512,10 @@ def build_scan_report(row):
         feature: row.get(feature, 0)
         for feature in MODEL_FEATURES
     }
+    features["content_count"] = row.get(
+        "content_count",
+        row.get("statuses_count", 0)
+    )
     confidence = to_number(row.get("confidence"))
     risk_code = normalize_risk_code(row.get("risk_code") or row.get("risk_level"))
     threat_label = row.get("threat_label") or build_threat_label(risk_code)
@@ -540,6 +545,7 @@ class ScanInput(BaseModel):
     followers_count: int
     following_count: int
     account_age_days: int
+    content_count: int = 0
     statuses_count: int
     has_profile_image: int
     verified: int
@@ -615,6 +621,7 @@ def predict(request: FastAPIRequest, data: ScanInput):
         "username": data.username or "",
         "raw_metrics": data.raw_metrics,
         **feature_row,
+        "content_count": feature_row["statuses_count"],
         "prediction": prediction,
         "label": "fake" if prediction == 1 else "real",
         "fake_probability": proba,

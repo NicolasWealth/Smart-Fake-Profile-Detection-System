@@ -30,6 +30,27 @@ function scheduleRetry(path, delayMs) {
   }, delayMs)
 }
 
+async function extractCurrentPlatformProfile() {
+  if (location.hostname.includes("instagram.com")) {
+    if (typeof extractInstagramProfile !== "function") return null
+    return extractInstagramProfile()
+  }
+
+  if (
+    location.hostname.includes("twitter.com") ||
+    location.hostname.includes("x.com")
+  ) {
+    if (typeof extractTwitterProfile === "function") {
+      return extractTwitterProfile()
+    }
+
+    if (typeof extractProfileData !== "function") return null
+    return extractProfileData()
+  }
+
+  return null
+}
+
 function scanProfile() {
   const path = window.location.pathname
 
@@ -41,19 +62,18 @@ function scanProfile() {
 
   const parts = path.split("/").filter(Boolean)
   if (parts.length !== 1) return
-  if (typeof extractProfileData !== "function") return
   if (typeof buildMlPayload !== "function") return
   if (path === lastCompletedPath || path === activeScanPath) return
 
   activeScanPath = path
 
-  setTimeout(function delayedScan() {
+  setTimeout(async function delayedScan() {
     if (window.location.pathname !== path) {
       activeScanPath = ""
       return
     }
 
-    const rawProfile = extractProfileData()
+    const rawProfile = await extractCurrentPlatformProfile()
 
     if (!rawProfile) {
       activeScanPath = ""
@@ -122,7 +142,7 @@ function scanProfile() {
       )
 
       showBadge(
-        `${risk.level} Risk\n${score}% suspicious`,
+        `${risk.level}\n${score}% suspicious`,
         risk.color
       )
       return

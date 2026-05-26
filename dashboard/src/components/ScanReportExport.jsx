@@ -18,6 +18,7 @@ const FEATURE_FIELDS = [
   "following_count",
   "follower_following_ratio",
   "account_age_days",
+  "content_count",
   "statuses_count",
   "posts_per_day",
   "content_density",

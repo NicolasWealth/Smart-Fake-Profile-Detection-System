@@ -10,6 +10,7 @@ import FakeVsRealChart from "../components/FakeVsRealChart.jsx"
 import FeatureImportanceChart from "../components/FeatureImportanceChart.jsx"
 import ModelMetrics from "../components/ModelMetrics.jsx"
 import PlatformDistribution from "../components/PlatformDistribution.jsx"
+import PlatformOverview from "../components/PlatformOverview.jsx"
 import PredictionPie from "../components/PredictionPie.jsx"
 import RecentScansTable from "../components/RecentScansTable.jsx"
 import RiskBarChart from "../components/RiskBarChart.jsx"
@@ -335,6 +336,8 @@ export default function Dashboard() {
         />
         <ScanReportExport scan={selectedScan} />
       </section>
+
+      <PlatformOverview scans={scans} />
 
       <section
         style={{
