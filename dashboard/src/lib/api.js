@@ -33,3 +33,15 @@ export function fetchModelInfo() {
 export function fetchScanReport(scanId) {
   return fetchJson(`/scan-report/${encodeURIComponent(scanId)}`)
 }
+
+export async function predictDemo(payload) {
+  const response = await fetch(`${AI_API_BASE_URL}/predict`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+  if (!response.ok) {
+    throw new Error(`Prediction failed (${response.status})`)
+  }
+  return response.json()
+}

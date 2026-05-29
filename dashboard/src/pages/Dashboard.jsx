@@ -18,6 +18,7 @@ import RiskBarChart from "../components/RiskBarChart.jsx"
 import RocCurveChart from "../components/RocCurveChart.jsx"
 import ScanReportExport from "../components/ScanReportExport.jsx"
 import ScanTimelineChart from "../components/ScanTimelineChart.jsx"
+import DemoLab from "../components/DemoLab.jsx"
 import SearchBar from "../components/SearchBar.jsx"
 import StatCard from "../components/StatCard.jsx"
 import SystemStatus from "../components/SystemStatus.jsx"
@@ -339,6 +340,9 @@ export default function Dashboard() {
 
       {loadingScans && <p style={{ color: theme.muted }}>Loading scan feed...</p>}
       {scanError && <p style={{ color: theme.amber }}>{scanError}</p>}
+
+      {/* Demo Lab */}
+      <DemoLab />
 
       {/* Search Bar */}
       <SearchBar scans={scans} onFilteredResults={handleFilteredResults} />
