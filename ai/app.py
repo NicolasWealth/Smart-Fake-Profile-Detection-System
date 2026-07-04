@@ -92,6 +92,7 @@ DEFAULT_ALLOWED_ORIGINS = [
     "chrome-extension://oeagfaaaaigiihdcdombadijdcfppljk",
     "https://ai-fake-twitter-profile-detection.vercel.app",
 ]
+DEFAULT_ALLOWED_ORIGIN_REGEX = r"chrome-extension://[a-p]{32}"
 
 
 def get_allowed_origins():
@@ -118,6 +119,10 @@ if RateLimitExceeded is not None:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_allowed_origins(),
+    allow_origin_regex=os.getenv(
+        "CORS_ALLOWED_ORIGIN_REGEX",
+        DEFAULT_ALLOWED_ORIGIN_REGEX
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
