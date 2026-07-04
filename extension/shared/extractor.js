@@ -61,6 +61,27 @@ function extractRawInstagramFollowing(username) {
   ])
 }
 
+function extractInstagramStatsFromMeta() {
+  const description = document.querySelector('meta[property="og:description"]')?.content || ""
+  const match = description.match(
+    /([\d,.]+[KM]?)\s+Followers,\s*([\d,.]+[KM]?)\s+Following,\s*([\d,.]+[KM]?)\s+Posts/i
+  )
+
+  if (!match) {
+    return {
+      rawFollowersText: null,
+      rawFollowingText: null,
+      rawPostsText: null
+    }
+  }
+
+  return {
+    rawFollowersText: match[1],
+    rawFollowingText: match[2],
+    rawPostsText: match[3]
+  }
+}
+
 function extractRawInstagramPosts(username) {
   return getRawTextFromSelectors([
     "header ul li:nth-child(1)",
@@ -76,10 +97,17 @@ function extractInstagramRaw() {
 
   if (!isInstagramProfilePath(username)) return null
 
-  const rawFollowersText = extractRawInstagramFollowers(username)
-  const rawFollowingText = extractRawInstagramFollowing(username)
-  const rawPostsText     = extractRawInstagramPosts(username)
+  const metaStats = extractInstagramStatsFromMeta()
+  const domFollowersText = extractRawInstagramFollowers(username)
+  const domFollowingText = extractRawInstagramFollowing(username)
+  const domPostsText     = extractRawInstagramPosts(username)
+  const rawFollowersText = domFollowersText || metaStats.rawFollowersText
+  const rawFollowingText = domFollowingText || metaStats.rawFollowingText
+  const rawPostsText     = domPostsText || metaStats.rawPostsText
   const rawBio           = extractRawInstagramBio()
+  const rawFollowersSource = domFollowersText ? "dom" : (metaStats.rawFollowersText ? "meta" : null)
+  const rawFollowingSource = domFollowingText ? "dom" : (metaStats.rawFollowingText ? "meta" : null)
+  const rawPostsSource     = domPostsText ? "dom" : (metaStats.rawPostsText ? "meta" : null)
 
   if (document.location.pathname !== initialPathname) return null
 
@@ -87,8 +115,11 @@ function extractInstagramRaw() {
   console.log("[FPD:extractor] Instagram raw extraction:", {
     username,
     rawFollowersText,
+    rawFollowersSource,
     rawFollowingText,
+    rawFollowingSource,
     rawPostsText,
+    rawPostsSource,
     rawBio
   })
 
