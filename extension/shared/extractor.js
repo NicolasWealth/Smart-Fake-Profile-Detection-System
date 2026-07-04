@@ -25,6 +25,11 @@ function getRawTextFromSelectors(selectors) {
   return null
 }
 
+function looksLikeCountText(text) {
+  if (!text) return false
+  return /^\d+(?:,\d{3})*(?:\.\d+)?[KMB]?$/i.test(text.trim())
+}
+
 /**
  * Extract the raw Instagram bio text using layered fallbacks.
  * OG meta → structured header span → null (never fake-default).
@@ -101,13 +106,19 @@ function extractInstagramRaw() {
   const domFollowersText = extractRawInstagramFollowers(username)
   const domFollowingText = extractRawInstagramFollowing(username)
   const domPostsText     = extractRawInstagramPosts(username)
-  const rawFollowersText = domFollowersText || metaStats.rawFollowersText
-  const rawFollowingText = domFollowingText || metaStats.rawFollowingText
-  const rawPostsText     = domPostsText || metaStats.rawPostsText
+  const validDomFollowersText = looksLikeCountText(domFollowersText) ? domFollowersText : null
+  const validDomFollowingText = looksLikeCountText(domFollowingText) ? domFollowingText : null
+  const validDomPostsText     = looksLikeCountText(domPostsText) ? domPostsText : null
+  const rejectedFollowersDomText = domFollowersText && !validDomFollowersText ? domFollowersText : null
+  const rejectedFollowingDomText = domFollowingText && !validDomFollowingText ? domFollowingText : null
+  const rejectedPostsDomText     = domPostsText && !validDomPostsText ? domPostsText : null
+  const rawFollowersText = validDomFollowersText || metaStats.rawFollowersText
+  const rawFollowingText = validDomFollowingText || metaStats.rawFollowingText
+  const rawPostsText     = validDomPostsText || metaStats.rawPostsText
   const rawBio           = extractRawInstagramBio()
-  const rawFollowersSource = domFollowersText ? "dom" : (metaStats.rawFollowersText ? "meta" : null)
-  const rawFollowingSource = domFollowingText ? "dom" : (metaStats.rawFollowingText ? "meta" : null)
-  const rawPostsSource     = domPostsText ? "dom" : (metaStats.rawPostsText ? "meta" : null)
+  const rawFollowersSource = validDomFollowersText ? "dom" : (metaStats.rawFollowersText ? "meta" : null)
+  const rawFollowingSource = validDomFollowingText ? "dom" : (metaStats.rawFollowingText ? "meta" : null)
+  const rawPostsSource     = validDomPostsText ? "dom" : (metaStats.rawPostsText ? "meta" : null)
 
   if (document.location.pathname !== initialPathname) return null
 
@@ -116,10 +127,13 @@ function extractInstagramRaw() {
     username,
     rawFollowersText,
     rawFollowersSource,
+    rejectedFollowersDomText,
     rawFollowingText,
     rawFollowingSource,
+    rejectedFollowingDomText,
     rawPostsText,
     rawPostsSource,
+    rejectedPostsDomText,
     rawBio
   })
 
