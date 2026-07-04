@@ -69,7 +69,10 @@ function extractRawInstagramPosts(username) {
 }
 
 function extractInstagramRaw() {
-  const username = document.location.pathname.split("/").filter(Boolean)[0] || ""
+  const initialPathname = document.location.pathname
+  const pathParts = initialPathname.split("/").filter(Boolean)
+  if (/^[a-z]{2}$/.test(pathParts[0] || "")) pathParts.shift()
+  const username = pathParts[0] || ""
 
   if (!isInstagramProfilePath(username)) return null
 
@@ -77,6 +80,8 @@ function extractInstagramRaw() {
   const rawFollowingText = extractRawInstagramFollowing(username)
   const rawPostsText     = extractRawInstagramPosts(username)
   const rawBio           = extractRawInstagramBio()
+
+  if (document.location.pathname !== initialPathname) return null
 
   // Debug log: always show raw vs parsed expectation
   console.log("[FPD:extractor] Instagram raw extraction:", {
