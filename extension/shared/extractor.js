@@ -447,20 +447,25 @@ function extractFacebookRaw() {
     const initialPathname = document.location.pathname
     const username = extractFacebookIdentifier()
 
+    console.log("[FPD:extractor] Facebook identifier check:", {
+      pathname: document.location.pathname,
+      username
+    })
+
     if (!username) return null
 
     const domFriendsText = extractRawFacebookFriends()
     const rawFriendsText = looksLikeCountText(domFriendsText) ? domFriendsText : null
     const rawBio = extractRawFacebookBio()
 
-    if (!rawFriendsText && !rawBio) return null
-    if (document.location.pathname !== initialPathname) return null
-
     console.log("[FPD:extractor] Facebook raw extraction:", {
       username,
       rawFriendsText,
       rawBio
     })
+
+    if (!rawFriendsText && !rawBio) return null
+    if (document.location.pathname !== initialPathname) return null
 
     return {
       platform: "facebook",
