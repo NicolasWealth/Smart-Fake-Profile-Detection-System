@@ -82,6 +82,11 @@ async function extractCurrentPlatformProfile() {
     return extractTikTokProfile()
   }
 
+  if (location.hostname.includes("facebook.com")) {
+    if (typeof extractFacebookProfile !== "function") return null
+    return extractFacebookProfile()
+  }
+
   if (
     location.hostname.includes("twitter.com") ||
     location.hostname.includes("x.com")

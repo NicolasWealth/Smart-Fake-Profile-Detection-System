@@ -55,6 +55,22 @@
         "content.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.facebook.com/*",
+        "https://facebook.com/*"
+      ],
+      "js": [
+        "shared/extractor.js",
+        "shared/normalizer.js",
+        "shared/featureEngineering.js",
+        "shared/explain.js",
+        "shared/risk.js",
+        "platforms/facebook.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "permissions": [
@@ -68,6 +84,8 @@
     "https://www.instagram.com/*",
     "https://instagram.com/*",
     "https://www.tiktok.com/*",
-    "https://tiktok.com/*"
+    "https://tiktok.com/*",
+    "https://www.facebook.com/*",
+    "https://facebook.com/*"
   ]
 }

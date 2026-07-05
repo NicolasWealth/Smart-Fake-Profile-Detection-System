@@ -142,6 +142,36 @@ function normalizeTikTok(raw) {
   }
 }
 
+function normalizeFacebook(raw) {
+  const { username, rawFriendsText, rawBio } = raw
+
+  const friends_count = parseCount(rawFriendsText)
+  const cleanBio = rawBio ? rawBio.trim() : ""
+  const bio_length = cleanBio.length > 0 ? cleanBio.length : null
+
+  console.log("[FPD:normalizer] Facebook parsed:", {
+    rawFriendsText, friends_count,
+    rawBio,         bio_length
+  })
+
+  return {
+    platform: "facebook",
+    username,
+    // Facebook exposes Friends here; map it into both fields because the ML payload expects followers/following.
+    followers: friends_count,
+    following: friends_count,
+    friends_count,
+    posts: null,
+    ratio: friends_count !== null ? 0 : null,
+    bio_length,
+    account_age_days: null,
+    has_profile_image: raw.hasProfilePicture ? 1 : 0,
+    verified: raw.isVerified ? 1 : 0,
+    username_randomness_score: calcRandomness(username),
+    username_length: username.length
+  }
+}
+
 function normalizeTwitter(raw) {
   const { username, rawFollowersText, rawFollowingText, rawPostsText, rawBio, rawJoinedDate } = raw
 
@@ -202,6 +232,7 @@ function normalizeRawProfile(rawExtracted) {
 
   if (rawExtracted.platform === "instagram") return normalizeInstagram(rawExtracted)
   if (rawExtracted.platform === "tiktok")    return normalizeTikTok(rawExtracted)
+  if (rawExtracted.platform === "facebook")  return normalizeFacebook(rawExtracted)
   if (rawExtracted.platform === "twitter")   return normalizeTwitter(rawExtracted)
 
   return null

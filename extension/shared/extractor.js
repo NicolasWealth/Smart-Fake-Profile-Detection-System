@@ -370,6 +370,121 @@ function extractTikTokRaw() {
   }
 }
 
+// --- Facebook ---------------------------------------------------------------
+
+const FACEBOOK_RESERVED_PATHS = new Set([
+  "about", "bookmarks", "events", "friends", "groups", "gaming", "help",
+  "home", "marketplace", "messages", "notifications", "pages", "photo",
+  "photos", "profile.php", "reel", "reels", "search", "settings", "stories",
+  "watch"
+])
+
+function extractFacebookIdentifier() {
+  const pathParts = document.location.pathname.split("/").filter(Boolean)
+  const firstPathPart = pathParts[0] || ""
+
+  if (firstPathPart === "profile.php") {
+    const id = new URLSearchParams(document.location.search).get("id") || ""
+    return /^\d+$/.test(id) ? id : ""
+  }
+
+  if (!firstPathPart || FACEBOOK_RESERVED_PATHS.has(firstPathPart.toLowerCase())) return ""
+
+  return firstPathPart
+}
+
+function extractFacebookCountFromText(text) {
+  const match = (text || "").match(/([\d,.]+[KMB]?)\s*(?:friends?)\b/i)
+  const countText = (match?.[1] || "").trim()
+  return looksLikeCountText(countText) ? countText : null
+}
+
+function extractRawFacebookFriends() {
+  const selectors = [
+    'a[href*="/friends"]',
+    'a[href*="sk=friends"]',
+    '[aria-label*="friends" i]',
+    'div[role="main"]'
+  ]
+
+  for (const selector of selectors) {
+    const text = getRawTextFromSelectors([selector])
+    const countText = extractFacebookCountFromText(text)
+    if (countText) return countText
+  }
+
+  return null
+}
+
+function cleanFacebookIntroText(text) {
+  const lines = (text || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !/^(intro|about|edit details|add bio|details about you)$/i.test(line))
+
+  return lines.length ? lines.join("\n") : null
+}
+
+function extractRawFacebookBio() {
+  const selectors = [
+    'div[role="main"] [aria-label="Intro"]',
+    'div[role="main"] [aria-label*="Intro" i]',
+    'div[role="main"] [data-pagelet*="ProfileTilesFeed"]',
+    'div[role="main"] [data-pagelet*="ProfileIntro"]'
+  ]
+
+  for (const selector of selectors) {
+    const text = cleanFacebookIntroText(getRawTextFromSelectors([selector]))
+    if (text) return text
+  }
+
+  return null
+}
+
+function extractFacebookRaw() {
+  try {
+    const initialPathname = document.location.pathname
+    const username = extractFacebookIdentifier()
+
+    if (!username) return null
+
+    const domFriendsText = extractRawFacebookFriends()
+    const rawFriendsText = looksLikeCountText(domFriendsText) ? domFriendsText : null
+    const rawBio = extractRawFacebookBio()
+
+    if (!rawFriendsText && !rawBio) return null
+    if (document.location.pathname !== initialPathname) return null
+
+    console.log("[FPD:extractor] Facebook raw extraction:", {
+      username,
+      rawFriendsText,
+      rawBio
+    })
+
+    return {
+      platform: "facebook",
+      username,
+      rawFriendsText,
+      rawBio,
+      hasProfilePicture: Boolean(
+        document.querySelector('div[role="main"] image') ||
+        document.querySelector('div[role="main"] img[alt*="profile picture" i]') ||
+        document.querySelector('div[role="main"] img[alt*="profile photo" i]') ||
+        document.querySelector('image[href*="scontent"]')
+      ),
+      isVerified: (
+        Boolean(document.querySelector('[aria-label*="Verified" i]')) ||
+        Boolean(document.querySelector('svg[aria-label*="Verified" i]')) ||
+        Boolean(document.querySelector('[title*="Verified" i]'))
+      )
+    }
+  } catch (error) {
+    console.warn("[FPD:extractor] Facebook raw extraction skipped:", error)
+    return null
+  }
+}
+
 function isTwitterProfileReady(username) {
   if (!username) return false
   return (
@@ -443,5 +558,6 @@ function extractTwitterRaw() {
 if (typeof globalThis !== "undefined") {
   globalThis.extractInstagramRaw = extractInstagramRaw
   globalThis.extractTikTokRaw    = extractTikTokRaw
+  globalThis.extractFacebookRaw  = extractFacebookRaw
   globalThis.extractTwitterRaw   = extractTwitterRaw
 }
