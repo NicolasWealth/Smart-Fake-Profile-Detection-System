@@ -146,6 +146,9 @@ function normalizeFacebook(raw) {
   const { username, rawFriendsText, rawBio } = raw
 
   const friends_count = parseCount(rawFriendsText)
+  // Facebook exposes Friends here; map it into both fields because the ML payload expects followers/following.
+  const followers = friends_count
+  const following = friends_count
   const cleanBio = rawBio ? rawBio.trim() : ""
   const bio_length = cleanBio.length > 0 ? cleanBio.length : null
 
@@ -154,15 +157,20 @@ function normalizeFacebook(raw) {
     rawBio,         bio_length
   })
 
+  // Ratio: log scale, null if either count unknown
+  let ratio = null
+  if (followers !== null && following !== null) {
+    ratio = +Math.log10((followers + 1) / (following + 1)).toFixed(4)
+  }
+
   return {
     platform: "facebook",
     username,
-    // Facebook exposes Friends here; map it into both fields because the ML payload expects followers/following.
-    followers: friends_count,
-    following: friends_count,
+    followers,
+    following,
     friends_count,
     posts: null,
-    ratio: friends_count !== null ? 0 : null,
+    ratio,
     bio_length,
     account_age_days: null,
     has_profile_image: raw.hasProfilePicture ? 1 : 0,
