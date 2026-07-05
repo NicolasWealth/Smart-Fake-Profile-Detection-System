@@ -159,6 +159,217 @@ function extractInstagramRaw() {
 
 // ─── Twitter / X ─────────────────────────────────────────────────────────────
 
+function extractTikTokUsernameFromPath(pathname) {
+  const handle = pathname.split("/").filter(Boolean)[0] || ""
+  return handle.startsWith("@") ? handle.slice(1) : ""
+}
+
+function extractRawTikTokFollowers() {
+  return getRawTextFromSelectors([
+    '[data-e2e="followers-count"]',
+    'strong[title*="Followers" i]',
+    'strong[aria-label*="Followers" i]'
+  ])
+}
+
+function extractRawTikTokFollowing() {
+  return getRawTextFromSelectors([
+    '[data-e2e="following-count"]',
+    'strong[title*="Following" i]',
+    'strong[aria-label*="Following" i]'
+  ])
+}
+
+function extractRawTikTokLikes() {
+  return getRawTextFromSelectors([
+    '[data-e2e="likes-count"]',
+    '[data-e2e="hearts-count"]',
+    'strong[title*="Likes" i]',
+    'strong[aria-label*="Likes" i]'
+  ])
+}
+
+function extractRawTikTokPosts() {
+  return getRawTextFromSelectors([
+    '[data-e2e="videos-count"]',
+    '[data-e2e="video-count"]',
+    'strong[title*="Videos" i]',
+    'strong[aria-label*="Videos" i]'
+  ])
+}
+
+function extractTikTokBioFromMetaDescription() {
+  const descriptions = [
+    document.querySelector('meta[property="og:description"]')?.content,
+    document.querySelector('meta[name="description"]')?.content,
+    document.querySelector('meta[name="twitter:description"]')?.content
+  ]
+
+  for (const description of descriptions) {
+    const text = (description || "").trim()
+    const match = text.match(
+      /\b[\d,.]+[KMB]?\s+Followers,\s*[\d,.]+[KMB]?\s+Following,\s*[\d,.]+[KMB]?\s+Likes\s*-\s*(.+)$/i
+    )
+    const bio = match?.[1]?.trim()
+    if (bio && !/^Watch awesome short videos created by\b/i.test(bio)) return bio
+  }
+
+  return null
+}
+
+function extractTikTokBioFromHydration() {
+  const scripts = document.querySelectorAll("script")
+
+  for (const script of scripts) {
+    const text = (script.textContent || "").trim()
+    if (!text || !text.includes('"webapp.user-detail"')) continue
+
+    try {
+      const data = JSON.parse(text)
+      const signature = data?.__DEFAULT_SCOPE__?.["webapp.user-detail"]?.userInfo?.user?.signature
+      if (signature && signature.trim()) return signature.trim()
+    } catch {
+      const match = text.match(/"webapp\.user-detail":\{"userInfo":\{"user":\{[\s\S]*?"signature":"((?:\\.|[^"\\])*)"/)
+      if (match) {
+        try {
+          const signature = JSON.parse(`"${match[1]}"`)
+          if (signature && signature.trim()) return signature.trim()
+        } catch {
+          if (match[1].trim()) return match[1].trim()
+        }
+      }
+    }
+  }
+
+  return null
+}
+
+function extractRawTikTokBio() {
+  const domBio = getRawTextFromSelectors([
+    '[data-e2e="user-info"] [data-e2e="user-bio"]',
+    'main [data-e2e="user-bio"]',
+    '[data-e2e="user-bio"]',
+    '[data-e2e="user-desc"]',
+    '[data-e2e="user-info"] h2 ~ div'
+  ])
+
+  return domBio || extractTikTokBioFromMetaDescription() || extractTikTokBioFromHydration()
+}
+
+function extractTikTokDescriptionText() {
+  const metaDescription =
+    document.querySelector('meta[property="og:description"]')?.content ||
+    document.querySelector('meta[name="description"]')?.content ||
+    document.querySelector('meta[name="twitter:description"]')?.content
+
+  if (metaDescription && metaDescription.trim()) return metaDescription.trim()
+
+  const scripts = document.querySelectorAll("script")
+  for (const script of scripts) {
+    const text = script.textContent || ""
+    const match = text.match(/"shareMeta":\{"title":"(?:\\.|[^"\\])*","desc":"((?:\\.|[^"\\])*)"/)
+    if (match) {
+      try {
+        return JSON.parse(`"${match[1]}"`)
+      } catch {
+        return match[1]
+      }
+    }
+  }
+
+  return ""
+}
+
+function extractTikTokStatsFromMeta() {
+  const description = extractTikTokDescriptionText()
+  const match = description.match(
+    /(?:^@\S+\s+)?([\d,.]+[KMB]?)\s+Followers,\s*([\d,.]+[KMB]?)\s+Following,\s*([\d,.]+[KMB]?)\s+Likes/i
+  )
+
+  if (!match) {
+    return {
+      rawFollowersText: null,
+      rawFollowingText: null,
+      rawLikesText: null
+    }
+  }
+
+  return {
+    rawFollowersText: match[1],
+    rawFollowingText: match[2],
+    rawLikesText: match[3]
+  }
+}
+
+function extractTikTokRaw() {
+  const initialPathname = document.location.pathname
+  const username = extractTikTokUsernameFromPath(initialPathname)
+
+  if (!username) return null
+
+  const metaStats = extractTikTokStatsFromMeta()
+  const domFollowersText = extractRawTikTokFollowers()
+  const domFollowingText = extractRawTikTokFollowing()
+  const domLikesText     = extractRawTikTokLikes()
+  const domPostsText     = extractRawTikTokPosts()
+  const validDomFollowersText = looksLikeCountText(domFollowersText) ? domFollowersText : null
+  const validDomFollowingText = looksLikeCountText(domFollowingText) ? domFollowingText : null
+  const validDomLikesText     = looksLikeCountText(domLikesText) ? domLikesText : null
+  const validDomPostsText     = looksLikeCountText(domPostsText) ? domPostsText : null
+  const rejectedFollowersDomText = domFollowersText && !validDomFollowersText ? domFollowersText : null
+  const rejectedFollowingDomText = domFollowingText && !validDomFollowingText ? domFollowingText : null
+  const rejectedLikesDomText     = domLikesText && !validDomLikesText ? domLikesText : null
+  const rejectedPostsDomText     = domPostsText && !validDomPostsText ? domPostsText : null
+  const rawFollowersText = validDomFollowersText || metaStats.rawFollowersText
+  const rawFollowingText = validDomFollowingText || metaStats.rawFollowingText
+  const rawLikesText     = validDomLikesText || metaStats.rawLikesText
+  const rawPostsText     = validDomPostsText
+  const rawBio           = extractRawTikTokBio()
+  const rawFollowersSource = validDomFollowersText ? "dom" : (metaStats.rawFollowersText ? "meta" : null)
+  const rawFollowingSource = validDomFollowingText ? "dom" : (metaStats.rawFollowingText ? "meta" : null)
+  const rawLikesSource     = validDomLikesText ? "dom" : (metaStats.rawLikesText ? "meta" : null)
+  const rawPostsSource     = validDomPostsText ? "dom" : null
+
+  if (document.location.pathname !== initialPathname) return null
+
+  console.log("[FPD:extractor] TikTok raw extraction:", {
+    username,
+    rawFollowersText,
+    rawFollowersSource,
+    rejectedFollowersDomText,
+    rawFollowingText,
+    rawFollowingSource,
+    rejectedFollowingDomText,
+    rawLikesText,
+    rawLikesSource,
+    rejectedLikesDomText,
+    rawPostsText,
+    rawPostsSource,
+    rejectedPostsDomText,
+    rawBio
+  })
+
+  return {
+    platform:        "tiktok",
+    username,
+    rawFollowersText,
+    rawFollowingText,
+    rawLikesText,
+    rawPostsText,
+    rawBio,
+    hasProfilePicture: Boolean(
+      document.querySelector('[data-e2e="user-avatar"] img') ||
+      document.querySelector('img[alt*="avatar" i]') ||
+      document.querySelector('main img[src*="avatar"]')
+    ),
+    isVerified: (
+      Boolean(document.querySelector('[data-e2e="user-verified"]')) ||
+      Boolean(document.querySelector('svg[aria-label*="Verified" i]')) ||
+      Boolean(document.querySelector('[title*="Verified" i]'))
+    )
+  }
+}
+
 function isTwitterProfileReady(username) {
   if (!username) return false
   return (
@@ -231,5 +442,6 @@ function extractTwitterRaw() {
 
 if (typeof globalThis !== "undefined") {
   globalThis.extractInstagramRaw = extractInstagramRaw
+  globalThis.extractTikTokRaw    = extractTikTokRaw
   globalThis.extractTwitterRaw   = extractTwitterRaw
 }

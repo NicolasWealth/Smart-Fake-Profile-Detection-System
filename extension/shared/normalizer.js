@@ -101,6 +101,47 @@ function normalizeInstagram(raw) {
 
 // ─── Twitter Normalizer ───────────────────────────────────────────────────────
 
+function normalizeTikTok(raw) {
+  const { username, rawFollowersText, rawFollowingText, rawLikesText, rawPostsText, rawBio } = raw
+
+  const followers = parseCount(rawFollowersText)
+  const following = parseCount(rawFollowingText)
+  const likes_count = parseCount(rawLikesText)
+  const posts = parseCount(rawPostsText)
+
+  const cleanBio = rawBio ? rawBio.trim() : ""
+  const bio_length = cleanBio.length > 0 ? cleanBio.length : null
+
+  console.log("[FPD:normalizer] TikTok parsed:", {
+    rawFollowersText, followers,
+    rawFollowingText, following,
+    rawLikesText,     likes_count,
+    rawPostsText,     posts,
+    rawBio,           bio_length
+  })
+
+  let ratio = null
+  if (followers !== null && following !== null) {
+    ratio = +Math.log10((followers + 1) / (following + 1)).toFixed(4)
+  }
+
+  return {
+    platform:                  "tiktok",
+    username,
+    followers,
+    following,
+    posts,
+    likes_count,
+    ratio,
+    bio_length,
+    account_age_days:          null,
+    has_profile_image:         raw.hasProfilePicture ? 1 : 0,
+    verified:                  raw.isVerified ? 1 : 0,
+    username_randomness_score: calcRandomness(username),
+    username_length:           username.length
+  }
+}
+
 function normalizeTwitter(raw) {
   const { username, rawFollowersText, rawFollowingText, rawPostsText, rawBio, rawJoinedDate } = raw
 
@@ -160,6 +201,7 @@ function normalizeRawProfile(rawExtracted) {
   if (!rawExtracted) return null
 
   if (rawExtracted.platform === "instagram") return normalizeInstagram(rawExtracted)
+  if (rawExtracted.platform === "tiktok")    return normalizeTikTok(rawExtracted)
   if (rawExtracted.platform === "twitter")   return normalizeTwitter(rawExtracted)
 
   return null
