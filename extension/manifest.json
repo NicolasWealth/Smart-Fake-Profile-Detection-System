@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Fake Profile Detection",
   "version": "1.0",
-  "description": "Detects fake profiles on Twitter/X and Instagram using AI.",
+  "description": "Detects fake profiles on Twitter/X, Instagram, TikTok and Facebook using AI.",
   "background": {
     "service_worker": "background.js",
     "type": "module"
