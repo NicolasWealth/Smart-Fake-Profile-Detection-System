@@ -15,6 +15,20 @@ let lastObservedPath  = ""
 let lastCompletedPath = ""
 let activeScanPath    = ""
 
+const PLATFORM_LABELS = {
+  facebook: "Facebook",
+  instagram: "Instagram",
+  tiktok: "TikTok",
+  twitter: "X/Twitter"
+}
+
+const RESERVED_PROFILE_PATHS = new Set([
+  "about", "bookmarks", "events", "explore", "friends", "groups", "gaming",
+  "help", "home", "marketplace", "messages", "notifications", "pages", "photo",
+  "photos", "profile.php", "reel", "reels", "search", "settings", "stories",
+  "watch"
+])
+
 // ─── Badge ────────────────────────────────────────────────────────────────────
 
 function removeBadge() {
@@ -101,13 +115,52 @@ async function extractCurrentPlatformProfile() {
 
 // ─── Scan ─────────────────────────────────────────────────────────────────────
 
+function detectCurrentPageStatus() {
+  const host = location.hostname.toLowerCase()
+  const pathParts = location.pathname.split("/").filter(Boolean)
+  let platform = ""
+  let username = ""
+
+  if (host.includes("instagram.com")) {
+    platform = "instagram"
+    username = pathParts[0] || ""
+  } else if (host.includes("tiktok.com")) {
+    platform = "tiktok"
+    username = (pathParts[0] || "").replace(/^@/, "")
+  } else if (host.includes("facebook.com")) {
+    platform = "facebook"
+    if (pathParts[0] === "profile.php") {
+      username = new URLSearchParams(location.search).get("id") || ""
+    } else {
+      username = pathParts[0] || ""
+    }
+  } else if (host.includes("twitter.com") || host.includes("x.com")) {
+    platform = "twitter"
+    username = pathParts[0] || ""
+  }
+
+  const supported = Boolean(
+    platform &&
+    username &&
+    !RESERVED_PROFILE_PATHS.has(username.toLowerCase())
+  )
+
+  return {
+    supported,
+    platform: supported ? PLATFORM_LABELS[platform] : "",
+    platform_key: supported ? platform : "",
+    username: supported ? username : ""
+  }
+}
+
 function scheduleRetry(path, delayMs) {
   setTimeout(() => {
     if (window.location.pathname === path) scanProfile()
   }, delayMs)
 }
 
-async function scanProfile() {
+async function scanProfile(options = {}) {
+  const { force = false, showStatus = true } = options
   const path = window.location.pathname
 
   // Reset state on URL change
@@ -118,9 +171,18 @@ async function scanProfile() {
   }
 
   const parts = path.split("/").filter(Boolean)
-  if (parts.length !== 1) return
-  if (typeof buildMlPayload !== "function") return
-  if (path === lastCompletedPath || path === activeScanPath) return
+  if (parts.length !== 1) {
+    return { success: false, error: "No profile detected on this page" }
+  }
+  if (typeof buildMlPayload !== "function") {
+    return { success: false, error: "Feature builder is unavailable" }
+  }
+  if (!force && path === lastCompletedPath) {
+    return { success: false, error: "Profile already scanned" }
+  }
+  if (path === activeScanPath) {
+    return { success: false, error: "Scan already running" }
+  }
 
   activeScanPath = path
 
@@ -129,75 +191,109 @@ async function scanProfile() {
 
   if (window.location.pathname !== path) {
     activeScanPath = ""
-    return
+    return { success: false, error: "Page changed before scan completed" }
   }
 
   if (!rawProfile) {
     activeScanPath = ""
-    removeBadge()
+    if (showStatus) removeBadge()
     scheduleRetry(path, 1500)
-    return
+    return { success: false, error: "Could not extract profile data" }
   }
 
   const payload = buildMlPayload(rawProfile)
 
   if (!payload) {
     activeScanPath = ""
-    showBadge("Extraction Error", "#555")
+    if (showStatus) showBadge("Extraction Error", "#555")
     scheduleRetry(path, 1500)
-    return
+    return { success: false, error: "Could not build ML payload" }
   }
 
-  showBadge("Scanning…", "#444")
+  if (showStatus) showBadge("Scanning...", "#444")
   console.log("[FPD] Raw profile:", rawProfile)
   console.log("[FPD] Payload to backend:", payload)
 
-  chrome.runtime.sendMessage({ type: "SCAN_PAGE", payload }, function onScanResponse(response) {
-    console.log("[FPD] Response:", response)
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ type: "SCAN_PAGE", payload }, function onScanResponse(response) {
+      console.log("[FPD] Response:", response)
 
-    activeScanPath = ""
+      activeScanPath = ""
 
-    if (chrome.runtime.lastError) {
-      console.error("[FPD] Runtime error:", chrome.runtime.lastError)
-      showBadge("Extension Error", "#555")
-      return
-    }
+      if (chrome.runtime.lastError) {
+        console.error("[FPD] Runtime error:", chrome.runtime.lastError)
+        if (showStatus) showBadge("Extension Error", "#555")
+        resolve({ success: false, error: chrome.runtime.lastError.message })
+        return
+      }
 
-    if (!response || !response.success) {
-      console.error("[FPD] Scan failed:", response?.error || "Unknown error")
-      showBadge("API Error", "#555")
-      return
-    }
+      if (!response || !response.success) {
+        console.error("[FPD] Scan failed:", response?.error || "Unknown error")
+        if (showStatus) showBadge("API Error", "#555")
+        resolve({ success: false, error: response?.error || "Unknown scan error" })
+        return
+      }
 
-    lastCompletedPath = path
+      lastCompletedPath = path
 
-    const data = response.data
+      const data = response.data
 
-    if (data.supabase_saved === false) {
-      console.warn("[FPD] Scan completed but not saved to Supabase:", {
-        server: data.supabase,
-        client: data.client_supabase
+      if (data.supabase_saved === false) {
+        console.warn("[FPD] Scan completed but not saved to Supabase:", {
+          server: data.supabase,
+          client: data.client_supabase
+        })
+      }
+
+      const explanation = typeof generateExplanation === "function"
+        ? generateExplanation(payload, data)
+        : { reasons: [] }
+
+      console.log("[FPD] Explanation:", explanation)
+
+      const score = Math.round((data.fake_probability || 0) * 100)
+      const risk  = typeof getRiskLevel === "function"
+        ? getRiskLevel(data.fake_probability || 0, data.confidence)
+        : { level: data.risk_level || "Unknown", color: "#444" }
+
+      console.log("[FPD] Risk:", risk)
+
+      if (showStatus) showBadge(`${risk.level}\n${score}% suspicious`, risk.color)
+
+      resolve({
+        success: true,
+        data: {
+          ...data,
+          explanation: data.explanation || explanation.reasons || [],
+          risk
+        }
       })
-    }
-
-    const explanation = typeof generateExplanation === "function"
-      ? generateExplanation(payload, data)
-      : []
-
-    console.log("[FPD] Explanation:", explanation)
-
-    const score = Math.round((data.fake_probability || 0) * 100)
-    const risk  = typeof getRiskLevel === "function"
-      ? getRiskLevel(data.fake_probability || 0, data.confidence)
-      : { level: data.risk_level || "Unknown", color: "#444" }
-
-    console.log("[FPD] Risk:", risk)
-
-    showBadge(`${risk.level}\n${score}% suspicious`, risk.color)
+    })
   })
 }
 
 // ─── MutationObserver bootstrap ───────────────────────────────────────────────
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "GET_PAGE_STATUS") {
+    sendResponse(detectCurrentPageStatus())
+    return false
+  }
+
+  if (message?.type === "TRIGGER_SCAN") {
+    scanProfile({ force: true, showStatus: true })
+      .then(sendResponse)
+      .catch((error) => {
+        sendResponse({
+          success: false,
+          error: error instanceof Error ? error.message : String(error)
+        })
+      })
+    return true
+  }
+
+  return false
+})
 
 let scanTimeout = null
 

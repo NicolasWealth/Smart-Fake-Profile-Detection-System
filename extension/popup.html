@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Fake Profile Detection</title>
+    <style>
+      body {
+        box-sizing: border-box;
+        width: 320px;
+        margin: 0;
+        padding: 16px;
+        font-family: Arial, sans-serif;
+      }
+
+      main {
+        display: grid;
+        gap: 12px;
+      }
+
+      button {
+        width: 100%;
+        padding: 10px 12px;
+      }
+
+      #result {
+        display: grid;
+        gap: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Profile Scanner</h1>
+        <p id="status">Checking current tab...</p>
+      </header>
+
+      <section aria-label="Detected profile">
+        <p><strong>Platform:</strong> <span id="platform">-</span></p>
+        <p><strong>Username:</strong> <span id="username">-</span></p>
+      </section>
+
+      <button id="scan-profile" type="button" disabled>Scan Profile</button>
+
+      <section id="result" aria-live="polite"></section>
+
+      <button id="view-history" type="button">View History</button>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
