@@ -84,6 +84,7 @@ FEATURE_BOUNDS = {
     "activity_score": (0, 500),
     "growth_signal": (0, 1000000),
 }
+MISSING_NUMERIC_SENTINEL = -1
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -167,6 +168,13 @@ def bounded_number(value, field):
     return clamp(to_number(value), lower, upper)
 
 
+def missing_aware_bounded_number(value, field):
+    if value is None:
+        return MISSING_NUMERIC_SENTINEL
+
+    return bounded_number(value, field)
+
+
 def round_feature(value):
     return round(value, 4) if math.isfinite(value) else 0.0
 
@@ -226,8 +234,10 @@ def load_json_file(path, fallback):
 
 
 def build_feature_row(data):
-    followers = bounded_number(data.followers_count, "followers_count")
-    following = bounded_number(data.following_count, "following_count")
+    followers = missing_aware_bounded_number(data.followers_count, "followers_count")
+    following = missing_aware_bounded_number(data.following_count, "following_count")
+    followers_known = followers != MISSING_NUMERIC_SENTINEL
+    following_known = following != MISSING_NUMERIC_SENTINEL
 
     # fillna(-1): null means the feature was not extractable from the page.
     # -1 is the sentinel the model was trained to recognise as "unknown".
@@ -254,28 +264,46 @@ def build_feature_row(data):
         statuses_count / (age_denominator + 1),
         *FEATURE_BOUNDS["tweets_per_day"]
     ))
-    engagement_proxy = round_feature(clamp(
-        followers * tweets_per_day,
-        *FEATURE_BOUNDS["engagement_proxy"]
-    ))
-    followers_log = round_feature(math.log1p(followers))
-    following_log = round_feature(math.log1p(following))
-    ratio_log = round_feature(followers_log / (following_log + 1))
+    engagement_proxy = (
+        round_feature(clamp(
+            followers * tweets_per_day,
+            *FEATURE_BOUNDS["engagement_proxy"]
+        ))
+        if followers_known else MISSING_NUMERIC_SENTINEL
+    )
+    followers_log = (
+        round_feature(math.log1p(followers))
+        if followers_known else MISSING_NUMERIC_SENTINEL
+    )
+    following_log = (
+        round_feature(math.log1p(following))
+        if following_known else MISSING_NUMERIC_SENTINEL
+    )
+    ratio_log = (
+        round_feature(followers_log / (following_log + 1))
+        if followers_known and following_known else MISSING_NUMERIC_SENTINEL
+    )
     activity_score = round_feature(clamp(
         statuses_count / (age_denominator + 1),
         *FEATURE_BOUNDS["activity_score"]
     ))
-    growth_signal = round_feature(clamp(
-        followers / (age_denominator + 1),
-        *FEATURE_BOUNDS["growth_signal"]
-    ))
+    growth_signal = (
+        round_feature(clamp(
+            followers / (age_denominator + 1),
+            *FEATURE_BOUNDS["growth_signal"]
+        ))
+        if followers_known else MISSING_NUMERIC_SENTINEL
+    )
 
     # follower_following_ratio: log10 scale matching the JS normalizer
-    raw_ratio = math.log10((followers + 1) / (following + 1))
-    follower_following_ratio = round_feature(clamp(
-        raw_ratio,
-        *FEATURE_BOUNDS["follower_following_ratio"]
-    ))
+    if followers_known and following_known:
+        raw_ratio = math.log10((followers + 1) / (following + 1))
+        follower_following_ratio = round_feature(clamp(
+            raw_ratio,
+            *FEATURE_BOUNDS["follower_following_ratio"]
+        ))
+    else:
+        follower_following_ratio = MISSING_NUMERIC_SENTINEL
 
     logger.info(
         "[FPD:preprocess] account_age_days=%s (fillna→%s), bio_length=%s (fillna→%s)",
@@ -569,8 +597,8 @@ def build_scan_report(row):
 
 
 class ScanInput(BaseModel):
-    followers_count: int
-    following_count: int
+    followers_count: Optional[int] = None
+    following_count: Optional[int] = None
     # None = feature not extractable from page; backend fills with -1 (fillna sentinel)
     account_age_days: Optional[int] = None
     content_count: int = 0
@@ -594,6 +622,9 @@ class ScanInput(BaseModel):
     username: str = ""
     platform: str = "twitter"
     scan_id: str = ""
+    data_complete: Optional[bool] = None
+    followers_known: Optional[bool] = None
+    following_known: Optional[bool] = None
     raw_metrics: dict[str, object] = Field(default_factory=dict)
 
 
@@ -648,6 +679,9 @@ def predict(request: FastAPIRequest, data: ScanInput):
         "platform": data.platform or "twitter",
         "scan_id": data.scan_id or "",
         "username": data.username or "",
+        "data_complete": data.data_complete,
+        "followers_known": data.followers_known,
+        "following_known": data.following_known,
         "raw_metrics": data.raw_metrics,
         **feature_row,
         "content_count": feature_row["statuses_count"],
