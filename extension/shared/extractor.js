@@ -400,17 +400,62 @@ function extractFacebookCountFromText(text) {
 }
 
 function extractRawFacebookFriends() {
-  const selectors = [
-    'a[href*="/friends"]',
-    'a[href*="sk=friends"]',
-    '[aria-label*="friends" i]',
-    'div[role="main"]'
-  ]
+  const root = document.querySelector('div[role="main"]') || document.body
+  const elements = [root, ...root.querySelectorAll("*")]
 
-  for (const selector of selectors) {
-    const text = getRawTextFromSelectors([selector])
-    const countText = extractFacebookCountFromText(text)
+  function isVisibleElement(el) {
+    const style = window.getComputedStyle(el)
+    return (
+      style.display !== "none" &&
+      style.visibility !== "hidden" &&
+      style.visibility !== "collapse" &&
+      style.opacity !== "0" &&
+      el.getClientRects().length > 0
+    )
+  }
+
+  function compactText(text) {
+    return (text || "").replace(/\s+/g, "").trim()
+  }
+
+  function normalizedText(el) {
+    return (el?.textContent || "").replace(/\s+/g, " ").trim()
+  }
+
+  function validCountFromText(text) {
+    const countText = compactText(text)
+    return looksLikeCountText(countText) ? countText : null
+  }
+
+  for (const el of elements) {
+    if (!isVisibleElement(el)) continue
+    const text = normalizedText(el)
+    if (!text || text.length > 30) continue
+
+    const match = text.match(/([\d,.]+\s*[KMB]?)\s*friends\b/i)
+    const countText = validCountFromText(match?.[1])
     if (countText) return countText
+  }
+
+  for (const el of elements) {
+    if (!isVisibleElement(el)) continue
+
+    const text = normalizedText(el)
+    if (!/^[\d,.]+\s*[KMB]?$/i.test(text)) continue
+
+    const countText = validCountFromText(text)
+    if (!countText) continue
+
+    const parentText = normalizedText(el.parentElement)
+    const countIndex = parentText.indexOf(text)
+    const nearbyText = countIndex >= 0
+      ? parentText.slice(
+          Math.max(0, countIndex - 50),
+          countIndex + text.length + 50
+        )
+      : parentText
+
+    if (/\bfriends?\b/i.test(nearbyText)) return countText
   }
 
   return null
@@ -427,16 +472,96 @@ function cleanFacebookIntroText(text) {
 }
 
 function extractRawFacebookBio() {
-  const selectors = [
-    'div[role="main"] [aria-label="Intro"]',
-    'div[role="main"] [aria-label*="Intro" i]',
-    'div[role="main"] [data-pagelet*="ProfileTilesFeed"]',
-    'div[role="main"] [data-pagelet*="ProfileIntro"]'
-  ]
+  const root = document.querySelector('div[role="main"]') || document.body
+  const elements = [root, ...root.querySelectorAll("*")]
 
-  for (const selector of selectors) {
-    const text = cleanFacebookIntroText(getRawTextFromSelectors([selector]))
-    if (text) return text
+  function isVisibleElement(el) {
+    const style = window.getComputedStyle(el)
+    return (
+      style.display !== "none" &&
+      style.visibility !== "hidden" &&
+      style.visibility !== "collapse" &&
+      style.opacity !== "0" &&
+      el.getClientRects().length > 0
+    )
+  }
+
+  function rawVisibleText(el) {
+    return (el?.innerText || el?.textContent || "").replace(/\u00a0/g, " ").trim()
+  }
+
+  function normalizedText(el) {
+    return rawVisibleText(el).replace(/\s+/g, " ").trim()
+  }
+
+  function isButtonLikeText(text) {
+    return /^(edit details|add bio|add details|edit bio|details about you)$/i.test(text)
+  }
+
+  function cleanMeaningfulText(text) {
+    const cleanedText = cleanFacebookIntroText(text)
+    if (!cleanedText) return null
+
+    const lines = cleanedText
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .filter((line) => !/^intro$/i.test(line))
+      .filter((line) => !isButtonLikeText(line))
+
+    return lines.length ? lines.join("\n") : null
+  }
+
+  function hasChildWithSameText(el, text) {
+    return [...el.children]
+      .filter(isVisibleElement)
+      .some((child) => normalizedText(child) === text)
+  }
+
+  function cleanTextAfterIntro(container) {
+    const lines = rawVisibleText(container)
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+    const introIndex = lines.findIndex((line) => /^intro$/i.test(line))
+
+    if (introIndex >= 0) {
+      return cleanMeaningfulText(lines.slice(introIndex + 1).join("\n"))
+    }
+
+    return null
+  }
+
+  function meaningfulTextFromContainer(container, introEl) {
+    const descendants = [...container.querySelectorAll("*")]
+    const introIndex = descendants.indexOf(introEl)
+
+    for (const candidate of descendants.slice(introIndex + 1)) {
+      if (!isVisibleElement(candidate)) continue
+      if (candidate.contains(introEl) || introEl.contains(candidate)) continue
+
+      const text = normalizedText(candidate)
+      if (!text || text.length > 300) continue
+      if (/^intro$/i.test(text) || isButtonLikeText(text)) continue
+      if (hasChildWithSameText(candidate, text)) continue
+
+      const cleanedText = cleanMeaningfulText(rawVisibleText(candidate))
+      if (cleanedText) return cleanedText
+    }
+
+    return cleanTextAfterIntro(container)
+  }
+
+  for (const el of elements) {
+    if (!isVisibleElement(el)) continue
+    if (!/^intro$/i.test(normalizedText(el))) continue
+
+    let container = el.parentElement
+    for (let depth = 0; container && depth < 5; depth++) {
+      const text = meaningfulTextFromContainer(container, el)
+      if (text) return text
+      container = container.parentElement
+    }
   }
 
   return null
