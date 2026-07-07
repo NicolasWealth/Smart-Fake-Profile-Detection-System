@@ -44,6 +44,16 @@ function toFiniteNumber(value) {
   return Number.isFinite(number) ? number : 0
 }
 
+/**
+ * Like toFiniteNumber but preserves null/undefined as null.
+ * Use for fields where null means "genuinely unknown" so we never
+ * silently coerce them to 0.
+ */
+function toNullableNumber(value) {
+  if (value === null || value === undefined) return null
+  return toFiniteNumber(value)
+}
+
 function roundFeature(value) {
   return Number.isFinite(value) ? +value.toFixed(4) : 0
 }
@@ -56,74 +66,99 @@ function boundedFeature(value, field) {
 function buildMlPayload(rawProfile) {
   if (!rawProfile) return null
 
-  const followers = boundedFeature(
-    toFiniteNumber(rawProfile.followers_count),
-    "followers_count"
-  )
-  const following = boundedFeature(
-    toFiniteNumber(rawProfile.following_count),
-    "following_count"
-  )
-  const accountAgeDays = Math.max(0, toFiniteNumber(rawProfile.account_age_days))
+  // followers/following: null means genuinely unknown, NOT zero.
+  // *ForCalc stand-ins are used only for derived-feature arithmetic.
+  const followersRaw  = toNullableNumber(rawProfile.followers_count)
+  const followingRaw  = toNullableNumber(rawProfile.following_count)
+  const followers = followersRaw !== null
+    ? boundedFeature(followersRaw, "followers_count")
+    : null
+  const following = followingRaw !== null
+    ? boundedFeature(followingRaw, "following_count")
+    : null
+  const followersForCalc = followers ?? 0
+  const followingForCalc = following ?? 0
+
+  // account_age_days: null means unknown; send null so backend fills -1
+  const accountAgeDays = rawProfile.account_age_days !== null && rawProfile.account_age_days !== undefined
+    ? Math.max(0, toFiniteNumber(rawProfile.account_age_days))
+    : null
+  const ageDenominator = accountAgeDays !== null ? accountAgeDays : 0
+
   const statuses = Math.max(0, toFiniteNumber(rawProfile.statuses_count))
   const hasProfileImage = clamp(toFiniteNumber(rawProfile.has_profile_image), 0, 1)
   const verified = clamp(toFiniteNumber(rawProfile.verified), 0, 1)
-  const bioLength = Math.max(0, toFiniteNumber(rawProfile.bio_length))
+
+  // bio_length: null means unknown; send null so backend fills -1
+  const bioLength = rawProfile.bio_length !== null && rawProfile.bio_length !== undefined
+    ? Math.max(0, toFiniteNumber(rawProfile.bio_length))
+    : null
+
   const usernameRandomnessScore = toFiniteNumber(rawProfile.username_randomness_score)
   const usernameLength = Math.max(0, toFiniteNumber(rawProfile.username_length))
 
   const followerFollowingRatio =
     roundFeature(
       boundedFeature(
-        followers / (following + 1),
+        followersForCalc / (followingForCalc + 1),
         "follower_following_ratio"
       )
     )
   const postsPerDay = roundFeature(
     boundedFeature(
-      statuses / (accountAgeDays + 1),
+      statuses / (ageDenominator + 1),
       "posts_per_day"
     )
   )
   const contentDensity = roundFeature(
     boundedFeature(
-      statuses / Math.max(accountAgeDays, 1),
+      statuses / Math.max(ageDenominator, 1),
       "content_density"
     )
   )
   const tweetsPerDay = roundFeature(
     boundedFeature(
-      statuses / (accountAgeDays + 1),
+      statuses / (ageDenominator + 1),
       "tweets_per_day"
     )
   )
   const engagementProxy = roundFeature(
     boundedFeature(
-      followers * tweetsPerDay,
+      followersForCalc * tweetsPerDay,
       "engagement_proxy"
     )
   )
-  const followersLog = roundFeature(Math.log1p(followers))
-  const followingLog = roundFeature(Math.log1p(following))
+  const followersLog = roundFeature(Math.log1p(followersForCalc))
+  const followingLog = roundFeature(Math.log1p(followingForCalc))
   const ratioLog = roundFeature(followersLog / (followingLog + 1))
   const activityScore = roundFeature(
     boundedFeature(
-      statuses / (accountAgeDays + 1),
+      statuses / (ageDenominator + 1),
       "activity_score"
     )
   )
   const growthSignal = roundFeature(
     boundedFeature(
-      followers / (accountAgeDays + 1),
+      followersForCalc / (ageDenominator + 1),
       "growth_signal"
     )
   )
 
+  const followersKnown = followers !== null
+  const followingKnown = following !== null
+  const dataComplete   = followersKnown && followingKnown
+
   return {
     platform: "twitter",
     username: rawProfile.username || "",
-    followers_count: followers,
-    following_count: following,
+    // ── core counts: null means genuinely unknown, not zero ──────────────
+    followers_count: followers,   // null if extractor could not read it
+    following_count: following,   // null if extractor could not read it
+    // ── data-quality flags for the backend/model ─────────────────────────
+    data_complete:   dataComplete,
+    followers_known: followersKnown,
+    following_known: followingKnown,
+    // ── derived features ─────────────────────────────────────────────────
     follower_following_ratio: followerFollowingRatio,
     account_age_days: accountAgeDays,
     statuses_count: statuses,

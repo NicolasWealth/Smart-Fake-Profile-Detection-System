@@ -52,6 +52,16 @@ function toFiniteNumber(value) {
   return Number.isFinite(n) ? n : 0
 }
 
+/**
+ * Like toFiniteNumber but preserves null/undefined as null.
+ * Use this for fields where null means "genuinely unknown"
+ * (followers, following) so we never silently coerce them to 0.
+ */
+function toNullableNumber(value) {
+  if (value === null || value === undefined) return null
+  return toFiniteNumber(value)
+}
+
 function calcRandomness(username) {
   if (!username) return 0
   let unusual = 0
@@ -120,8 +130,19 @@ function buildMlPayload(rawProfile) {
 
   const username = norm.username || ""
 
-  const followers      = boundedFeature(toFiniteNumber(norm.followers_count), "followers_count")
-  const following      = boundedFeature(toFiniteNumber(norm.following_count), "following_count")
+  // Use toNullableNumber so that null stays null instead of silently becoming 0.
+  // The _orZero variants are used ONLY for local derived-feature arithmetic;
+  // they are never written directly into the payload.
+  const followersRaw   = toNullableNumber(norm.followers_count)
+  const followingRaw   = toNullableNumber(norm.following_count)
+  const followers      = followersRaw !== null
+    ? boundedFeature(followersRaw, "followers_count")
+    : null
+  const following      = followingRaw !== null
+    ? boundedFeature(followingRaw, "following_count")
+    : null
+  const followersForCalc = followers ?? 0   // stand-in for derived-feature math only
+  const followingForCalc = following ?? 0   // stand-in for derived-feature math only
   const contentCount   = Math.max(0, toFiniteNumber(norm.statuses_count || norm.content_count))
   const hasProfileImage = clamp(normalizeBooleanMetric(norm.has_profile_image), 0, 1)
   const verified       = clamp(normalizeBooleanMetric(norm.verified), 0, 1)
@@ -143,10 +164,12 @@ function buildMlPayload(rawProfile) {
   // For derived features that need account_age_days, treat null as 0 in denominator only
   const ageDenominator = accountAgeDays !== null ? accountAgeDays : 0
 
-  // Ratio: use log10 scale as specified
+  // Ratio: use log10 scale as specified.
+  // Derived features use the *ForCalc stand-ins (which are 0 when unknown)
+  // so math never blows up, but the payload fields still carry null.
   const followerFollowingRatio = roundFeature(
     boundedFeature(
-      Math.log10((followers + 1) / (following + 1)),
+      Math.log10((followersForCalc + 1) / (followingForCalc + 1)),
       "follower_following_ratio"
     )
   )
@@ -154,16 +177,21 @@ function buildMlPayload(rawProfile) {
   const postsPerDay    = roundFeature(boundedFeature(contentCount / (ageDenominator + 1), "posts_per_day"))
   const contentDensity = roundFeature(boundedFeature(contentCount / Math.max(ageDenominator, 1), "content_density"))
   const tweetsPerDay   = roundFeature(boundedFeature(contentCount / (ageDenominator + 1), "tweets_per_day"))
-  const engagementProxy = roundFeature(boundedFeature(followers * tweetsPerDay, "engagement_proxy"))
-  const followersLog   = roundFeature(Math.log1p(followers))
-  const followingLog   = roundFeature(Math.log1p(following))
+  const engagementProxy = roundFeature(boundedFeature(followersForCalc * tweetsPerDay, "engagement_proxy"))
+  const followersLog   = roundFeature(Math.log1p(followersForCalc))
+  const followingLog   = roundFeature(Math.log1p(followingForCalc))
   const ratioLog       = roundFeature(followersLog / (followingLog + 1))
   const activityScore  = roundFeature(boundedFeature(contentCount / (ageDenominator + 1), "activity_score"))
-  const growthSignal   = roundFeature(boundedFeature(followers / (ageDenominator + 1), "growth_signal"))
+  const growthSignal   = roundFeature(boundedFeature(followersForCalc / (ageDenominator + 1), "growth_signal"))
+
+  const followersKnown = followers !== null
+  const followingKnown = following !== null
+  const dataComplete   = followersKnown && followingKnown
 
   console.log("[FPD:featureEngineering] Final ML payload:", {
     username,
     followers, following, accountAgeDays, bioLength,
+    followersKnown, followingKnown, dataComplete,
     followerFollowingRatio, ratioLog, postsPerDay
   })
 
@@ -171,8 +199,14 @@ function buildMlPayload(rawProfile) {
     platform:                  norm.platform || "twitter",
     username,
     raw_metrics:               { ...norm },
-    followers_count:           followers,
-    following_count:           following,
+    // ── core counts: null means genuinely unknown, not zero ──────────────
+    followers_count:           followers,   // null if extractor could not read it
+    following_count:           following,   // null if extractor could not read it
+    // ── data-quality flags for the backend/model ─────────────────────────
+    data_complete:             dataComplete,   // false when any critical field is null
+    followers_known:           followersKnown, // false → backend should treat followers_count as missing
+    following_known:           followingKnown, // false → backend should treat following_count as missing
+    // ── derived features (computed from 0-substituted stand-ins) ─────────
     follower_following_ratio:  followerFollowingRatio,
     account_age_days:          accountAgeDays,
     content_count:             contentCount,
