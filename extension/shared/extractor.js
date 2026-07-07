@@ -400,63 +400,14 @@ function extractFacebookCountFromText(text) {
 }
 
 function extractRawFacebookFriends() {
-  const root = document.querySelector('div[role="main"]') || document.body
-  const elements = [root, ...root.querySelectorAll("*")]
+  const bodyText = document.body?.innerText || ""
+  const matches = bodyText.match(/([\d,.]+\s?[KMB]?)\s*Friends\b/gi)
+  const firstMatch = matches?.[0] || ""
+  const countText = (firstMatch.match(/^([\d,.]+\s?[KMB]?)/i)?.[1] || "")
+    .replace(/\s+/g, "")
+    .trim()
 
-  function isVisibleElement(el) {
-    const style = window.getComputedStyle(el)
-    return (
-      style.display !== "none" &&
-      style.visibility !== "hidden" &&
-      style.visibility !== "collapse" &&
-      style.opacity !== "0" &&
-      el.getClientRects().length > 0
-    )
-  }
-
-  function compactText(text) {
-    return (text || "").replace(/\s+/g, "").trim()
-  }
-
-  function normalizedText(el) {
-    return (el?.textContent || "").replace(/\s+/g, " ").trim()
-  }
-
-  function validCountFromText(text) {
-    const countText = compactText(text)
-    return looksLikeCountText(countText) ? countText : null
-  }
-
-  for (const el of elements) {
-    if (!isVisibleElement(el)) continue
-    const text = normalizedText(el)
-    if (!text || text.length > 30) continue
-
-    const match = text.match(/([\d,.]+\s*[KMB]?)\s*friends\b/i)
-    const countText = validCountFromText(match?.[1])
-    if (countText) return countText
-  }
-
-  for (const el of elements) {
-    if (!isVisibleElement(el)) continue
-
-    const text = normalizedText(el)
-    if (!/^[\d,.]+\s*[KMB]?$/i.test(text)) continue
-
-    const countText = validCountFromText(text)
-    if (!countText) continue
-
-    const parentText = normalizedText(el.parentElement)
-    const countIndex = parentText.indexOf(text)
-    const nearbyText = countIndex >= 0
-      ? parentText.slice(
-          Math.max(0, countIndex - 50),
-          countIndex + text.length + 50
-        )
-      : parentText
-
-    if (/\bfriends?\b/i.test(nearbyText)) return countText
-  }
+  if (looksLikeCountText(countText)) return countText
 
   return null
 }
