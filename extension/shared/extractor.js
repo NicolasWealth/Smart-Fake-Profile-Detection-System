@@ -457,6 +457,34 @@ function isRejectedFacebookBioText(text) {
   )
 }
 
+function looksLikeRealFacebookBioText(text) {
+  const trimmedText = (text || "").trim()
+  if (trimmedText.length < 15) return false
+
+  const hasLongWord = trimmedText
+    .split(/\s+/)
+    .some((word) => /[\p{L}]{4,}/u.test(word))
+
+  if (!hasLongWord) return false
+
+  const hasSentencePunctuation = /[.,!?]/.test(trimmedText)
+  const lines = trimmedText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+  const isBareSingleWordList = (
+    lines.length > 0 &&
+    !hasSentencePunctuation &&
+    lines.every((line) => /^\S+$/.test(line))
+  )
+
+  return !isBareSingleWordList
+}
+
+function shouldRejectFacebookBioText(text) {
+  return isRejectedFacebookBioText(text) || !looksLikeRealFacebookBioText(text)
+}
+
 function cleanFacebookIntroText(text) {
   const rawLines = (text || "")
     .split("\n")
@@ -466,7 +494,7 @@ function cleanFacebookIntroText(text) {
   if (!rawLines.length) return null
 
   const rawCandidateText = rawLines.join("\n")
-  if (isRejectedFacebookBioText(rawCandidateText)) {
+  if (shouldRejectFacebookBioText(rawCandidateText)) {
     rejectedFacebookBioText = rawCandidateText
     return null
   }
@@ -477,7 +505,7 @@ function cleanFacebookIntroText(text) {
   if (!lines.length) return null
 
   const candidateText = lines.join("\n")
-  if (isRejectedFacebookBioText(candidateText)) {
+  if (shouldRejectFacebookBioText(candidateText)) {
     rejectedFacebookBioText = candidateText
     return null
   }
