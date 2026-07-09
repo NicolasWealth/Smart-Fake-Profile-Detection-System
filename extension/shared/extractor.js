@@ -399,6 +399,23 @@ function extractFacebookCountFromText(text) {
   return looksLikeCountText(countText) ? countText : null
 }
 
+const FACEBOOK_REJECTED_BIO_PHRASES = new Set([
+  "see all photos",
+  "photos",
+  "see all friends",
+  "see all",
+  "edit bio",
+  "add bio",
+  "edit details",
+  "add details",
+  "intro",
+  "following",
+  "followers",
+  "friends"
+])
+
+let rejectedFacebookBioText = null
+
 function extractRawFacebookFriends() {
   const bodyText = document.body?.innerText || ""
   const matches = bodyText.match(/([\d,.]+\s?[KMB]?)\s*Friends\b/gi)
@@ -412,17 +429,64 @@ function extractRawFacebookFriends() {
   return null
 }
 
-function cleanFacebookIntroText(text) {
-  const lines = (text || "")
+function normalizeFacebookBioRejectionText(text) {
+  return (text || "")
+    .replace(/\u00a0/g, " ")
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/^[\s:;,.!?()[\]{}"'`]+|[\s:;,.!?()[\]{}"'`]+$/g, "")
+    .toLowerCase()
+}
+
+function isRejectedFacebookBioText(text) {
+  const trimmedText = (text || "").trim()
+  if (!trimmedText) return false
+
+  if (FACEBOOK_REJECTED_BIO_PHRASES.has(normalizeFacebookBioRejectionText(trimmedText))) {
+    return true
+  }
+
+  const lines = trimmedText
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
+
+  return (
+    lines.length > 0 &&
+    lines.every((line) => FACEBOOK_REJECTED_BIO_PHRASES.has(normalizeFacebookBioRejectionText(line)))
+  )
+}
+
+function cleanFacebookIntroText(text) {
+  const rawLines = (text || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  if (!rawLines.length) return null
+
+  const rawCandidateText = rawLines.join("\n")
+  if (isRejectedFacebookBioText(rawCandidateText)) {
+    rejectedFacebookBioText = rawCandidateText
+    return null
+  }
+
+  const lines = rawLines
     .filter((line) => !/^(intro|about|edit details|add bio|details about you)$/i.test(line))
 
-  return lines.length ? lines.join("\n") : null
+  if (!lines.length) return null
+
+  const candidateText = lines.join("\n")
+  if (isRejectedFacebookBioText(candidateText)) {
+    rejectedFacebookBioText = candidateText
+    return null
+  }
+
+  return candidateText
 }
 
 function extractRawFacebookBio() {
+  rejectedFacebookBioText = null
   const root = document.querySelector('div[role="main"]') || document.body
   const elements = [root, ...root.querySelectorAll("*")]
 
@@ -510,7 +574,10 @@ function extractRawFacebookBio() {
     let container = el.parentElement
     for (let depth = 0; container && depth < 5; depth++) {
       const text = meaningfulTextFromContainer(container, el)
-      if (text) return text
+      if (text) {
+        rejectedFacebookBioText = null
+        return text
+      }
       container = container.parentElement
     }
   }
@@ -533,10 +600,12 @@ function extractFacebookRaw() {
     const domFriendsText = extractRawFacebookFriends()
     const rawFriendsText = looksLikeCountText(domFriendsText) ? domFriendsText : null
     const rawBio = extractRawFacebookBio()
+    const rejectedBioText = rawBio ? null : rejectedFacebookBioText
 
     console.log("[FPD:extractor] Facebook raw extraction:", {
       username,
       rawFriendsText,
+      rejectedBioText,
       rawBio
     })
 
