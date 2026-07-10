@@ -92,6 +92,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_ALLOWED_ORIGINS = [
     "chrome-extension://oeagfaaaaigiihdcdombadijdcfppljk",
     "https://ai-fake-twitter-profile-detection.vercel.app",
+    "https://smart-fake-profile-detection-system.vercel.app",
 ]
 DEFAULT_ALLOWED_ORIGIN_REGEX = r"chrome-extension://[a-p]{32}"
 
