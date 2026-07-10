@@ -113,7 +113,6 @@ async function handleScanRequest(payload) {
 
   const result = await res.json()
   const serverSupabaseResult = result?.supabase
-  let clientSupabaseResult = null
 
   const supabaseBody = {
     ...payload,
@@ -135,14 +134,19 @@ async function handleScanRequest(payload) {
     console.log("[FPD] Server did not save to Supabase, falling back to extension:", serverSupabaseResult)
     console.log("[FPD] Sending to Supabase:", supabaseBody)
 
-    const supabaseResult = await insertSupabaseScan(supabaseBody)
-    clientSupabaseResult = supabaseResult
-
-    if (!supabaseResult.ok) {
-      console.error("[FPD] Supabase error:", supabaseResult.status, supabaseResult.errorText)
-    } else {
-      console.log("[FPD] Supabase save OK for:", payload.username)
-    }
+    setTimeout(() => {
+      insertSupabaseScan(supabaseBody)
+        .then((supabaseResult) => {
+          if (!supabaseResult.ok) {
+            console.error("[FPD] Supabase error:", supabaseResult.status, supabaseResult.errorText)
+          } else {
+            console.log("[FPD] Supabase save OK for:", payload.username)
+          }
+        })
+        .catch((error) => {
+          console.error("[FPD] Supabase insert failed:", error)
+        })
+    }, 0)
   }
 
   if (serverSupabaseResult?.skipped) {
@@ -151,8 +155,8 @@ async function handleScanRequest(payload) {
     console.log("[FPD] Server-side Supabase result:", serverSupabaseResult)
   }
 
-  result.supabase_saved = Boolean(serverSupabaseResult?.ok || clientSupabaseResult?.ok)
-  result.client_supabase = clientSupabaseResult
+  result.supabase_saved = serverSupabaseResult?.ok ? true : null
+  result.client_supabase = null
 
   return result
 }

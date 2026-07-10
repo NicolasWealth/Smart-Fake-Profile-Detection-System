@@ -228,5 +228,97 @@
       "scan_id": "demo-nature-photo-diary"
     },
     "presentation_note": "Normal personal Instagram account with balanced follower graph, regular posting cadence, and a complete bio."
+  },
+  {
+    "username": "chef_maya_daily",
+    "platform": "tiktok",
+    "expected": "REAL",
+    "expected_label": "Authentic Profile",
+    "expected_confidence_band": "Critical Confidence",
+    "demo_order": 11,
+    "payload": {
+      "followers_count": 1200000,
+      "following_count": 380,
+      "account_age_days": 1600,
+      "statuses_count": 940,
+      "has_profile_image": 1,
+      "verified": 1,
+      "bio_length": 54,
+      "username_randomness_score": 0.04,
+      "username_length": 15,
+      "username": "chef_maya_daily",
+      "platform": "tiktok",
+      "scan_id": "demo-chef-maya-daily"
+    },
+    "presentation_note": "Authentic TikTok creator profile with strong audience signals, verification, and steady posting activity."
+  },
+  {
+    "username": "coin_drop_tt77",
+    "platform": "tiktok",
+    "expected": "HIGH",
+    "expected_label": "Automated Threat",
+    "expected_confidence_band": "Strong Confidence",
+    "demo_order": 12,
+    "payload": {
+      "followers_count": 68000,
+      "following_count": 6,
+      "account_age_days": 9,
+      "statuses_count": 7200,
+      "has_profile_image": 0,
+      "verified": 0,
+      "bio_length": 6,
+      "username_randomness_score": 0.84,
+      "username_length": 14,
+      "username": "coin_drop_tt77",
+      "platform": "tiktok",
+      "scan_id": "demo-coin-drop-tt77"
+    },
+    "presentation_note": "High-risk TikTok automation pattern with sparse identity data, rapid posting, and giveaway-style naming."
+  },
+  {
+    "username": "natgeoexplorers",
+    "platform": "facebook",
+    "expected": "REAL",
+    "expected_label": "Authentic Profile",
+    "expected_confidence_band": "Critical Confidence",
+    "demo_order": 13,
+    "payload": {
+      "followers_count": 420000,
+      "following_count": 85,
+      "account_age_days": null,
+      "statuses_count": 2100,
+      "has_profile_image": 1,
+      "verified": 1,
+      "bio_length": 96,
+      "username_randomness_score": 0.02,
+      "username_length": 15,
+      "username": "natgeoexplorers",
+      "platform": "facebook",
+      "scan_id": "demo-natgeoexplorers-facebook"
+    },
+    "presentation_note": "Authentic Facebook page style profile with verification, complete metadata, and unavailable account age."
+  },
+  {
+    "username": "marketplace_deals_90210",
+    "platform": "facebook",
+    "expected": "HIGH",
+    "expected_label": "Automated Threat",
+    "expected_confidence_band": "Strong Confidence",
+    "demo_order": 14,
+    "payload": {
+      "followers_count": 54000,
+      "following_count": 3,
+      "account_age_days": null,
+      "statuses_count": 8900,
+      "has_profile_image": 0,
+      "verified": 0,
+      "bio_length": 4,
+      "username_randomness_score": 0.86,
+      "username_length": 23,
+      "username": "marketplace_deals_90210",
+      "platform": "facebook",
+      "scan_id": "demo-marketplace-deals-90210"
+    },
+    "presentation_note": "High-risk Facebook profile pattern with unavailable age, sparse metadata, and automated marketplace-style activity."
   }
 ]

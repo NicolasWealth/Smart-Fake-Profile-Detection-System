@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { FlaskConical, Twitter, Instagram, PlayCircle, CheckCircle2, XCircle, Loader2 } from "lucide-react"
+import { AtSign, BookUser, Camera, FlaskConical, Music2, PlayCircle, CheckCircle2, XCircle, Loader2 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
 import demoAccounts from "../../../demo_accounts.json"
@@ -8,18 +8,28 @@ import { cardStyle, createBadgeStyle, getRiskTone, theme } from "../lib/dashboar
 
 // ─── constants ───────────────────────────────────────────────────────────────
 
-const PLATFORM_ORDER = ["twitter", "instagram"]
+const PLATFORM_ORDER = ["twitter", "instagram", "tiktok", "facebook"]
 
 const PLATFORM_META = {
   twitter: {
     label: "Twitter",
     color: "#1d9bf0",
-    Icon: Twitter,
+    Icon: AtSign,
   },
   instagram: {
     label: "Instagram",
     color: "#e1306c",
-    Icon: Instagram,
+    Icon: Camera,
+  },
+  tiktok: {
+    label: "TikTok",
+    color: theme.yellow,
+    Icon: Music2,
+  },
+  facebook: {
+    label: "Facebook",
+    color: theme.green,
+    Icon: BookUser,
   },
 }
 
