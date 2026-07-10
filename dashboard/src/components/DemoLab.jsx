@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { AtSign, BookUser, Camera, FlaskConical, Music2, PlayCircle, CheckCircle2, XCircle, Loader2 } from "lucide-react"
+import { AtSign, BookUser, Camera, FlaskConical, Music2, PlayCircle, Loader2 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
 import demoAccounts from "../../../demo_accounts.json"
@@ -53,15 +53,6 @@ function sorted(accounts) {
   return [...accounts].sort((a, b) => (a.demo_order ?? 99) - (b.demo_order ?? 99))
 }
 
-function resultMatchesExpected(result, account) {
-  if (!result) return null
-  const label = (result.label ?? result.prediction ?? "").toLowerCase()
-  const expected = (account.expected ?? "").toLowerCase()
-  // Map model "real"/"fake" to risk bands
-  if (expected === "real") return label === "real"
-  if (expected === "high" || expected === "medium" || expected === "low") return label === "fake"
-  return null // UNCERTAIN — model may either way
-}
 
 // ─── sub-components ──────────────────────────────────────────────────────────
 
@@ -111,11 +102,12 @@ function ProbabilityBar({ value }) {
   )
 }
 
-function ResultPanel({ result, account }) {
+function ResultPanel({ result }) {
+  const resultLabel = result.label ?? result.prediction ?? "unknown"
   const tone = getRiskTone(
     Math.round((result.fake_probability ?? result.probability ?? 0) * 100)
   )
-  const passed = resultMatchesExpected(result, account)
+  const riskLabel = result.threat_label ?? result.risk_level ?? tone.label
 
   return (
     <motion.div
@@ -132,20 +124,10 @@ function ResultPanel({ result, account }) {
     >
       {/* Label row */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <span style={{ ...createBadgeStyle(tone.color) }}>{tone.label}</span>
-        {passed === true && (
-          <span style={{ ...createBadgeStyle(theme.green), display: "inline-flex", gap: 4, alignItems: "center" }}>
-            <CheckCircle2 size={12} /> Pass
-          </span>
-        )}
-        {passed === false && (
-          <span style={{ ...createBadgeStyle(theme.red), display: "inline-flex", gap: 4, alignItems: "center" }}>
-            <XCircle size={12} /> Unexpected
-          </span>
-        )}
-        {passed === null && (
-          <span style={{ ...createBadgeStyle(theme.gray), fontSize: 11 }}>Uncertain — either is valid</span>
-        )}
+        <span style={{ ...createBadgeStyle(tone.color) }}>{riskLabel}</span>
+        <span style={{ ...createBadgeStyle(theme.gray), fontSize: 11 }}>
+          Model label: {String(resultLabel)}
+        </span>
       </div>
 
       {/* Probability bar */}
@@ -153,7 +135,7 @@ function ResultPanel({ result, account }) {
 
       {/* Threshold note */}
       <p style={{ margin: "6px 0 0", fontSize: 11, color: theme.subtle }}>
-        Threshold: {((result.threshold ?? 0.5) * 100).toFixed(0)}% · Expected: <em>{account.expected_label}</em>
+        Threshold: {((result.threshold ?? 0.5) * 100).toFixed(0)}%
       </p>
     </motion.div>
   )
@@ -179,7 +161,6 @@ function DemoCard({ account }) {
   }
 
   const isLoading = status === "loading"
-  const expectedTone = getRiskTone(0, 100, account.expected)
 
   return (
     <motion.div
@@ -199,11 +180,13 @@ function DemoCard({ account }) {
         <div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
             <PlatformBadge platform={account.platform} />
-            <span style={createBadgeStyle(expectedTone.color)}>{account.expected_label}</span>
           </div>
           <p style={{ margin: 0, fontWeight: 700, fontSize: 15, color: theme.text }}>@{account.username}</p>
           <p style={{ margin: "4px 0 0", fontSize: 11, color: theme.muted, lineHeight: 1.5 }}>
             {account.presentation_note}
+          </p>
+          <p style={{ margin: "4px 0 0", fontSize: 11, color: theme.subtle, lineHeight: 1.5 }}>
+            Expected profile type: <em>{account.expected_label}</em>
           </p>
         </div>
 
@@ -251,7 +234,7 @@ function DemoCard({ account }) {
       {/* Result or error */}
       <AnimatePresence>
         {status === "done" && result && (
-          <ResultPanel key="result" result={result} account={account} />
+          <ResultPanel key="result" result={result} />
         )}
         {status === "error" && (
           <motion.p
