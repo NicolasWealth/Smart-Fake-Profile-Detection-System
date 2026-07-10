@@ -1,4 +1,4 @@
-import { AtSign, Camera, Music2 } from "lucide-react"
+import { AtSign, BookUser, Camera, Music2 } from "lucide-react"
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts"
 
 import { cardStyle, createBadgeStyle, theme } from "../lib/dashboardTheme.js"
@@ -7,7 +7,8 @@ import EmptyState from "./EmptyState.jsx"
 const PLATFORMS = [
   { key: "twitter", label: "Twitter", color: theme.cyan, icon: AtSign },
   { key: "instagram", label: "Instagram", color: theme.magenta, icon: Camera },
-  { key: "tiktok", label: "TikTok", color: theme.yellow, icon: Music2 }
+  { key: "tiktok", label: "TikTok", color: theme.yellow, icon: Music2 },
+  { key: "facebook", label: "Facebook", color: theme.green, icon: BookUser }
 ]
 
 function normalizePlatform(value) {
@@ -17,6 +18,9 @@ function normalizePlatform(value) {
   }
   if (normalized.includes("tiktok") || normalized.includes("tik tok")) {
     return "tiktok"
+  }
+  if (normalized.includes("facebook")) {
+    return "facebook"
   }
   return "twitter"
 }
@@ -37,7 +41,7 @@ export default function PlatformDistribution({ scans }) {
       <div>
         <h2 style={{ margin: 0, fontSize: 20, color: theme.text }}>Platform distribution</h2>
         <p style={{ marginTop: 8, color: theme.muted }}>
-          Scan share across Twitter, Instagram, and TikTok.
+          Scan share across Twitter, Instagram, TikTok, and Facebook.
         </p>
       </div>
 
