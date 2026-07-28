@@ -1,3 +1,5 @@
+import { useEffect } from "react"
+
 const sections = [
   {
     title: "What data we collect",
@@ -50,11 +52,20 @@ const articleStyle = {
 }
 
 export default function PrivacyPolicy() {
+  useEffect(() => {
+    const previousTitle = document.title
+    document.title = "Privacy Policy \u2014 Fake Profile Detector"
+
+    return () => {
+      document.title = previousTitle
+    }
+  }, [])
+
   return (
     <main style={pageStyle}>
       <article style={articleStyle}>
         <h1 style={{ fontSize: "1.6rem", letterSpacing: 0, margin: "0 0 8px" }}>
-          Privacy Policy - Fake Profile Detector
+          Privacy Policy &mdash; Fake Profile Detector
         </h1>
         <p style={{ color: "#64748b", fontSize: "0.85rem", marginBottom: 24 }}>
           Last updated: July 27, 2026
