@@ -451,6 +451,24 @@ export default function Dashboard() {
         />
         <ExplanationPanel scan={selectedScan} />
       </section>
+
+      <footer
+        style={{
+          borderTop: `1px solid ${theme.border}`,
+          paddingTop: 18,
+          color: theme.muted,
+          fontSize: 13
+        }}
+      >
+        <a
+          href="/privacy-policy.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: theme.cyan, textDecoration: "none", fontWeight: 700 }}
+        >
+          Privacy Policy
+        </a>
+      </footer>
     </div>
   )
 }
