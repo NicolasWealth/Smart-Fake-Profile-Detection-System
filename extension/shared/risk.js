@@ -9,7 +9,7 @@ function getRiskLevel(probability, confidence) {
                 ? probability
                 : 1 - probability
 
-    if (resolvedConfidence < 0.60) {
+    if (resolvedConfidence < 0.15) {
         return {
             level: "Insufficient Evidence",
             color: "#64748b"
