@@ -143,16 +143,19 @@ function normalizeTikTok(raw) {
 }
 
 function normalizeFacebook(raw) {
-  const { username, rawFriendsText, rawBio } = raw
+  const { username, rawFollowersText, rawFollowingText, rawFriendsText, rawBio } = raw
 
+  const parsedFollowers = parseCount(rawFollowersText)
+  const parsedFollowing = parseCount(rawFollowingText)
   const friends_count = parseCount(rawFriendsText)
-  // Facebook exposes Friends here; map it into both fields because the ML payload expects followers/following.
-  const followers = friends_count
-  const following = friends_count
+  const followers = parsedFollowers !== null ? parsedFollowers : friends_count
+  const following = parsedFollowing !== null ? parsedFollowing : friends_count
   const cleanBio = rawBio ? rawBio.trim() : ""
   const bio_length = cleanBio.length > 0 ? cleanBio.length : null
 
   console.log("[FPD:normalizer] Facebook parsed:", {
+    rawFollowersText, parsedFollowers,
+    rawFollowingText, parsedFollowing,
     rawFriendsText, friends_count,
     rawBio,         bio_length
   })

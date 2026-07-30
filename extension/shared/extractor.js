@@ -394,7 +394,7 @@ function extractFacebookIdentifier() {
 }
 
 function extractFacebookCountFromText(text) {
-  const match = (text || "").match(/([\d,.]+[KMB]?)\s*(?:friends?)\b/i)
+  const match = (text || "").match(/([\d,.]+[KMB]?)\s*(?:followers?|following|friends?)\b/i)
   const countText = (match?.[1] || "").trim()
   return looksLikeCountText(countText) ? countText : null
 }
@@ -427,6 +427,41 @@ function extractRawFacebookFriends() {
   if (looksLikeCountText(countText)) return countText
 
   return null
+}
+
+function extractRawFacebookLinkedCount(kind) {
+  const selectors = [
+    `a[role="link"][href*="/${kind}/"]`,
+    `a[href*="/${kind}/"]`,
+    `a[role="link"][href$="/${kind}"]`,
+    `a[href$="/${kind}"]`
+  ]
+
+  for (const selector of selectors) {
+    const links = document.querySelectorAll(selector)
+
+    for (const link of links) {
+      const linkText = (link.innerText || link.textContent || "").trim()
+      if (!new RegExp(`\\b${kind}\\b`, "i").test(linkText)) continue
+
+      const strongText = (link.querySelector("strong")?.innerText || link.querySelector("strong")?.textContent || "")
+        .trim()
+      if (looksLikeCountText(strongText)) return strongText
+
+      const countText = extractFacebookCountFromText(linkText)
+      if (countText) return countText
+    }
+  }
+
+  return null
+}
+
+function extractRawFacebookFollowers() {
+  return extractRawFacebookLinkedCount("followers")
+}
+
+function extractRawFacebookFollowing() {
+  return extractRawFacebookLinkedCount("following")
 }
 
 function normalizeFacebookBioRejectionText(text) {
@@ -613,6 +648,31 @@ function extractRawFacebookBio() {
   return null
 }
 
+function hasCurrentFacebookProfilePictureOverlay() {
+  const root = document.querySelector('div[role="main"]') || document.body
+  const overlays = root.querySelectorAll(
+    'div[role="none"][data-visualcompletion="ignore"][style*="inset: 0px"]'
+  )
+
+  for (const overlay of overlays) {
+    let container = overlay.parentElement
+
+    for (let depth = 0; container && depth < 5; depth++) {
+      if (
+        container.querySelector('image, img') ||
+        container.querySelector('svg[role="img"], svg image') ||
+        container.querySelector('a[role="link"][href*="/photo"], a[role="link"][href*="photo.php"]')
+      ) {
+        return true
+      }
+
+      container = container.parentElement
+    }
+  }
+
+  return false
+}
+
 function extractFacebookRaw() {
   try {
     const initialPathname = document.location.pathname
@@ -625,31 +685,40 @@ function extractFacebookRaw() {
 
     if (!username) return null
 
+    const domFollowersText = extractRawFacebookFollowers()
+    const domFollowingText = extractRawFacebookFollowing()
     const domFriendsText = extractRawFacebookFriends()
+    const rawFollowersText = looksLikeCountText(domFollowersText) ? domFollowersText : null
+    const rawFollowingText = looksLikeCountText(domFollowingText) ? domFollowingText : null
     const rawFriendsText = looksLikeCountText(domFriendsText) ? domFriendsText : null
     const rawBio = extractRawFacebookBio()
     const rejectedBioText = rawBio ? null : rejectedFacebookBioText
 
     console.log("[FPD:extractor] Facebook raw extraction:", {
       username,
+      rawFollowersText,
+      rawFollowingText,
       rawFriendsText,
       rejectedBioText,
       rawBio
     })
 
-    if (!rawFriendsText && !rawBio) return null
+    if (!rawFollowersText && !rawFollowingText && !rawFriendsText && !rawBio) return null
     if (document.location.pathname !== initialPathname) return null
 
     return {
       platform: "facebook",
       username,
+      rawFollowersText,
+      rawFollowingText,
       rawFriendsText,
       rawBio,
       hasProfilePicture: Boolean(
         document.querySelector('div[role="main"] image') ||
         document.querySelector('div[role="main"] img[alt*="profile picture" i]') ||
         document.querySelector('div[role="main"] img[alt*="profile photo" i]') ||
-        document.querySelector('image[href*="scontent"]')
+        document.querySelector('image[href*="scontent"]') ||
+        hasCurrentFacebookProfilePictureOverlay()
       ),
       isVerified: (
         Boolean(document.querySelector('[aria-label*="Verified" i]')) ||
