@@ -62,7 +62,8 @@
     {
       "matches": [
         "https://www.facebook.com/*",
-        "https://facebook.com/*"
+        "https://facebook.com/*",
+        "https://web.facebook.com/*"
       ],
       "js": [
         "shared/extractor.js",
