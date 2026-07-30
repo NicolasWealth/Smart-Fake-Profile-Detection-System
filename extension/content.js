@@ -131,6 +131,8 @@ function detectCurrentPageStatus() {
     platform = "facebook"
     if (pathParts[0] === "profile.php") {
       username = new URLSearchParams(location.search).get("id") || ""
+    } else if (pathParts[0] === "people") {
+      username = pathParts[1] || ""
     } else {
       username = pathParts[0] || ""
     }
@@ -170,8 +172,7 @@ async function scanProfile(options = {}) {
     activeScanPath    = ""
   }
 
-  const parts = path.split("/").filter(Boolean)
-  if (parts.length !== 1) {
+  if (!detectCurrentPageStatus().supported) {
     return { success: false, error: "No profile detected on this page" }
   }
   if (typeof buildMlPayload !== "function") {

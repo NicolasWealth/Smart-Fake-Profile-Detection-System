@@ -25,7 +25,7 @@ export default function RecentScansTable({ scans, selectedScanKey, onSelect }) {
       {scans.length === 0 && (
         <EmptyState title="No scans available" detail="Waiting for telemetry from the live scan feed." />
       )}
-      <div style={{ overflowX: "auto" }}>
+      <div style={{ maxHeight: 400, overflowX: "auto", overflowY: "auto" }}>
         {scans.length > 0 && <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ textAlign: "left", color: theme.muted }}>

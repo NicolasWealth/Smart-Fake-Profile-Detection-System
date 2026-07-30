@@ -388,6 +388,10 @@ function extractFacebookIdentifier() {
     return /^\d+$/.test(id) ? id : ""
   }
 
+  if (firstPathPart === "people") {
+    return pathParts[1] || ""
+  }
+
   if (!firstPathPart || FACEBOOK_RESERVED_PATHS.has(firstPathPart.toLowerCase())) return ""
 
   return firstPathPart
