@@ -12,30 +12,41 @@
 
 function waitForFacebookProfile() {
   return new Promise((resolve) => {
+    let settled = false
+    let observer = null
+
+    function finish() {
+      if (settled) return
+      settled = true
+      observer?.disconnect()
+      resolve()
+    }
+
     if (
       document.querySelector('div[role="main"]') ||
       document.querySelector("main")
     ) {
-      resolve()
+      finish()
       return
     }
 
-    const observer = new MutationObserver(() => {
+    observer = new MutationObserver(() => {
       if (
         document.querySelector('div[role="main"]') ||
         document.querySelector("main")
       ) {
-        observer.disconnect()
-        resolve()
+        finish()
       }
     })
 
     observer.observe(document.body, { childList: true, subtree: true })
+    setTimeout(finish, 8000)
   })
 }
 
 async function extractFacebookProfile() {
   try {
+    console.log("[FPD:facebook] script injected, hostname:", location.hostname, "pathname:", location.pathname)
     await waitForFacebookProfile()
 
     const raw = extractFacebookRaw()
